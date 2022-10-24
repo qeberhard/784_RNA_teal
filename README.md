@@ -52,6 +52,3 @@ recount3::create_rse_manual(
     annotation = "gencode_v26",
     type = "gene"
 )
-
-MUSCLE:
-
