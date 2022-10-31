@@ -1,54 +1,27 @@
-# 784_RNA_teal
-BIOS/BCB 784 Final Project 2022, Teal, RNA
-**Potential Projects?**
+#BIOS/BCB 784 Final Project 2022, Teal, RNA
+Quinn Eberhard, Anastacia Wienecke, Kwame Forbes, and Chenghao Wang
 
-**BRAIN**
-The Genotype-Tissue Expression (GTEx) project is an ongoing effort to build a comprehensive public resource to study tissue-specific gene expression and regulation. Samples were collected from 54 non-diseased tissue sites across nearly 1000 individuals, primarily for molecular assays including WGS, WES, and RNA-Seq. Remaining samples are available from the GTEx Biobank. The GTEx Portal provides open access to data including gene expression, QTLs, and histology images. Check <https://gtexportal.org/> for more information on the GTEx project.
+###Our Data and Constructing the SummarizedExperiments
+Here we are conducting an analysis on two human cell types: K562 and HEPG2 cells.
+K562 are erythroleukemia cancer cells from a 52 year old female and HEPG2 are hepatocellular carcinoma cells from a 15 year old boy. Both have been thoroughly studied for biological analyses but here we study them in the context of eCLIP asays.
 
-n = 2931
-BRAIN:
-recount3::create_rse_manual(
-    project = "BRAIN",
-    project_home = "data_sources/gtex",
-    organism = "human",
-    annotation = "gencode_v26",
-    type = "gene"
-)
-``````
-````````````````````````````````````````````````````````````
+eCLIP stands for enhanced cross-linking immunoprecipitation, which is an assay where the RNA of a cell is screened against a singular target protein to identify the location and frequency of RNA-protein binding. This can be performed as many independent experiments, varying the target protein each time, to develop a rather large RBP dataset. One scientist particularly renown for this process is Gene Yeo, whose data we further analyze here - accessed through ENCODE. He and his lab have performed eCLIP for K562 cells on (137?) different target proteins and in HEPG2 cells on (???) proteins.
 
-HEART: n=942
-recount3::create_rse_manual(
-    project = "HEART",
-    project_home = "data_sources/gtex",
-    organism = "human",
-    annotation = "gencode_v26",
-    type = "gene"
-)
+ENCODE provides these datasets for easy processed-file downloads, so we downloaded the bam files for all experiments for each cell type:
+xargs -L 1 curl -O -J -L < download_K562_files.txt
+Note that all downloaded .bam files and merged .bam files have been excluded from the repository, however, the downloaded metadata_K562.tsv file is included in the developing_se/ directory of this repository. This includes information on all the file types that were downloaded for each experiment which was later used to develop the colData() of the summarized experiments.
 
-MUSCLE: n=881
-recount3::create_rse_manual(
-    project = "HEART",
-    project_home = "data_sources/gtex",
-    organism = "human",
-    annotation = "gencode_v26",
-    type = "gene"
-)
+The file "bam_file_mappings.tsv" was generated from the python script `map_bam_replicates.py`
 
-LUNG: n=655
-recount3::create_rse_manual(
-    project = "LUNG",
-    project_home = "data_sources/gtex",
-    organism = "human",
-    annotation = "gencode_v26",
-    type = "gene"
-)
+There were two replicates for each experiment, so we merged the bam files using `samtools merge` for each replicate, then ran featurecounts to determine the RBP counts (script in serial_bam_merge.sh)
 
-SPLEEN: n=255
-recount3::create_rse_manual(
-    project = "SPLEEN",
-    project_home = "data_sources/gtex",
-    organism = "human",
-    annotation = "gencode_v26",
-    type = "gene"
-)
+
+The !!!.gtf genome was downloaded from GENCODE for the GRCh... and was used for featureCount runs. This genome/gtf file informed the development of the rowData() of the summarized experiments.
+
+Another component of the rowData() development was to determine the subcellular localization of different RNAs. Although this data is not readily derived from the eCLIP experiments of Gene Yeo, we instead used the total and fractionated rna-seq experiments of [Name of the Contributer]. From this, we performed an alignment and ... to derive the localization values for each RNA in the genome. This is included in the `sub-cellular localization` section of the rowData.
+
+The SummarizedExperiment was developed by the code in load_se.R and the object is stored in the K562_se.Rda to be easily accessed. The individual matrices of the asssay(), colData(), and rowData() are also included in the files K562_assay.tsv, K562_colData.tsv, and K562_rowData.tsv. 
+
+This process was repeated with the developing_se/HEPG2_se/ directory.
+
+###Data Analysis
