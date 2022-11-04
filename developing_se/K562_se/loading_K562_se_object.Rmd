@@ -1,0 +1,30 @@
+```{r}
+library(SummarizedExperiment, quietly=T)
+library(dplyr)
+library(readr)
+library(tibble)
+
+```
+
+```{r}
+counts <- read.csv("main_featcount_K562.tsv", sep="\t")
+column_data <- read.csv("column_data_K562.tsv", sep="\t")
+
+column_data <- column_data[ order(match(column_data$Experiment.accession, colnames(counts))), ]
+rownames(column_data) <- NULL
+
+row_data <- read.csv("rowdata_K562.tsv", sep="\t")
+```
+
+```{r}
+column_data <- column_to_rownames(column_data, "Experiment.accession")
+counts <- column_to_rownames(counts, "Gene.id")
+row_data <- column_to_rownames(row_data, "Gene_id")
+se <- SummarizedExperiment(counts, colData = column_data, rowData=row_data)
+```
+
+```{r}
+rowData(se)
+colData(se)
+assay(se)
+```
