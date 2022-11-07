@@ -21,6 +21,7 @@ column_data <- column_to_rownames(column_data, "Experiment.accession")
 counts <- column_to_rownames(counts, "Gene.id")
 row_data <- column_to_rownames(row_data, "Gene_id")
 se <- SummarizedExperiment(counts, colData = column_data, rowData=row_data)
+save(se, file = "se_K562.rda")
 ```
 
 ```{r}
