@@ -23,4 +23,4 @@ png(file="~/BCB784_proj/784_RNA_teal/developing_se/K562_se/BigPheatMap_wClusteri
 pheatmap(se_assay[1:135], cluster_rows=F, show_rownames=F,
          cluster_cols=T, main = "Pheat map of K562", border_color = T,annotation_row = Anno,
          color =colorRampPalette(c('red','white','blue'))(100), scale = "row",fontsize = 8, cellwidth = 10)
-dev.off()
+dev.off()   
