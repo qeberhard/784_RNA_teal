@@ -38,7 +38,6 @@ plot(1:k.max, wss,
      type="b", pch = 19, frame = FALSE, 
      xlab="Number of clusters K",
      ylab="Total within-clusters sum of squares")
-
 # running kmeans and plotting results
 install.packages("factoextra")
 library(factoextra)
