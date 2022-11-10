@@ -20,7 +20,8 @@ plot(se.PC1PC2)
 #install.packages("devtools")
 #install_github("vqv/ggbiplot")
 library(devtools)
-library(ggbiplot)
+library(rsvd)
+#library(ggbiplot)
 se.pca <- prcomp(assay(se), center=TRUE, scale=TRUE)
 ggbiplot(se.pca)
 ```
@@ -39,7 +40,7 @@ plot(1:k.max, wss,
      ylab="Total within-clusters sum of squares")
 
 # running kmeans and plotting results
-#install.packages("factoextra")
+install.packages("factoextra")
 library(factoextra)
 res.km <- kmeans(assay(se), centers=5)
 fviz_cluster(res.km, data = assay(se),
