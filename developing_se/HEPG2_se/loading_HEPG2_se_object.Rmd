@@ -3,6 +3,7 @@ library(SummarizedExperiment, quietly=T)
 library(dplyr)
 library(readr)
 library(tibble)
+library(GenomicRanges)
 
 ```
 
@@ -20,12 +21,57 @@ row_data <- read.csv("../rowdata.tsv", sep="\t")
 column_data <- column_to_rownames(column_data, "Experiment.accession")
 counts <- column_to_rownames(counts, "Gene.id")
 row_data <- column_to_rownames(row_data, "Gene_id")
-se <- SummarizedExperiment(counts, colData = column_data, rowData=row_data)
+se <- SummarizedExperiment(assays = list(counts = data.matrix(counts)), colData = column_data, rowData=row_data)
+
 save(se, file = "se_HEPG2.rda")
 ```
+
+Filtering se
+```{r}
+#Filtering number of counts for each row if necessary
+rowTotal = 0
+keep <- rowSums(assay(se)) > 0
+se <- se[keep,]
+
+#Filtering gene types if necessary
+#Finding gene types
+gene_type <- as.data.frame(se@elementMetadata@listData$Gene_type)
+colnames(gene_type) <- c("GENETYPE")
+gene_type <- as.data.frame(count(gene_type, GENETYPE))
+gene_type <- gene_type[order(-gene_type$n),]
+
+#IF we want to select certain gene types
+wantedGenes <- c('protein_coding',"lncRNA")
+keep2 <- se@elementMetadata@listData$Gene_type ==  wantedGenes 
+se2 <- se[keep2,]
+save(se2, file = "se2_HEPG2.rda")
+
+```
+
 
 ```{r}
 rowData(se)
 colData(se)
 assay(se)
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
