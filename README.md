@@ -5,7 +5,7 @@ Quinn Eberhard, Anastacia Wienecke, Kwame Forbes, and Chenghao Wang
 Here we are conducting an analysis on two human cell types: K562 and HEPG2 cells.
 K562 are erythroleukemia cancer cells from a 52 year old female and HEPG2 are hepatocellular carcinoma cells from a 15 year old boy. Both have been thoroughly studied for biological analyses but here we study them in the context of eCLIP asays.
 
-eCLIP stands for enhanced cross-linking immunoprecipitation, which is an assay where the RNA of a cell is screened against a singular target protein to identify the location and frequency of RNA-protein binding. This can be performed as many independent experiments, varying the target protein each time, to develop a rather large RBP dataset. One scientist particularly renown for this process is Gene Yeo, whose data we further analyze here - accessed through ENCODE. He and his lab have performed eCLIP for K562 cells on (137?) different target proteins and in HEPG2 cells on (???) proteins.
+eCLIP stands for enhanced cross-linking immunoprecipitation, which is an assay where the RNA of a cell is screened against a singular target protein to identify the location and frequency of RNA-protein binding. This can be performed as many independent experiments, varying the target protein each time, to develop a rather large RBP dataset. One scientist particularly renown for this process is Gene Yeo, whose data we further analyze here - accessed through ENCODE. He and his lab have performed eCLIP for K562 cells on 131 different target proteins and in HEPG2 cells on 103 proteins.
 
 ENCODE provides these datasets for easy processed-file downloads, so we downloaded the bam files for all experiments for each cell type:
 xargs -L 1 curl -O -J -L < download_K562_files.txt
