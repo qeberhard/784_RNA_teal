@@ -14,7 +14,7 @@ column_data <- read.csv("column_data_K562.tsv", sep="\t")
 column_data <- column_data[ order(match(column_data$Experiment.accession, colnames(counts))), ]
 rownames(column_data) <- NULL
 
-row_data <- read.csv("rowdata_K562.tsv", sep="\t")
+row_data <- read.csv("../rowdata.tsv", sep="\t")
 ```
 
 ```{r}
