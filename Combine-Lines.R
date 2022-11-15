@@ -1,7 +1,5 @@
 library(AnnotationDbi)
 library(org.Hs.eg.db)
-library(tidyverse)
-library(data.table)
 library(dplyr)
 
 
