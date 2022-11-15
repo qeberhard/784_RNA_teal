@@ -40,6 +40,19 @@ dim(se.c)
 
 #[1] 19982   135
 
+### MA plot
+### M = log2 fold change
+### A = average of log2 mean counts
+
+ggplot(data = data.frame(M = log2( colMeans(assay(se.nc))/colMeans(assay(se.c)) ),
+                         A = .5*(log2(colMeans(assay(se.nc))) + log2(colMeans(assay(se.c))) )
+                           ), aes(x = A, y = M)) +
+  geom_point(shape = 1, color = "navy") +
+  geom_hline(yintercept = 0) +
+  labs(title = "Witout filtering") +
+  geom_smooth(method = "loess", se = F)
+
+
 ####################################
 # filter out genes with total counts = 0
 ####################################
@@ -64,6 +77,13 @@ dim(se0.c)
 
 # [1] 19179   135
 
+ggplot(data = data.frame(M = log2( colMeans(assay(se0.nc))/colMeans(assay(se0.c)) ),
+                         A = .5*(log2(colMeans(assay(se0.nc))) + log2(colMeans(assay(se0.c))) )
+), aes(x = A, y = M)) +
+  geom_point(shape = 1, color = "navy") +
+  geom_hline(yintercept = 0) +
+  labs(title = "filter out genes with total counts = 0") +
+  geom_smooth(method = "loess", se = F)
 
 ####################################
 # filter out genes with a threshold > 0
@@ -74,7 +94,7 @@ logrowsums <- log1p(rowSums(assay(se)))
 ggplot(data = data.frame( x = logrowsums ), aes(x = x)) +
   geom_histogram(binwidth = 0.1) +
   labs(x = "log(rowSum + 1)") +
-  scale_x_continuous(n.breaks = 30)
+  scale_x_continuous(n.breaks = 30) 
 
 ###
 
@@ -144,7 +164,13 @@ dim(se1.c)
 
 #[1] 16889   135
 
-
+ggplot(data = data.frame(M = log2( colMeans(assay(se1.nc))/colMeans(assay(se1.c)) ),
+                         A = .5*(log2(colMeans(assay(se1.nc))) + log2(colMeans(assay(se1.c))) )
+), aes(x = A, y = M)) +
+  geom_point(shape = 1, color = "navy") +
+  geom_hline(yintercept = 0) +
+  labs(title = "filter out genes with a threshold > 0") +
+  geom_smooth(method = "loess", se = F)
 
 
 
