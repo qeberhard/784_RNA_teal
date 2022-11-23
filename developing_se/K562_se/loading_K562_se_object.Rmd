@@ -8,13 +8,13 @@ library(GenomicRanges)
 ```
 
 ```{r}
-counts <- read.csv("main_featcount_K562.tsv", sep="\t")
-column_data <- read.csv("column_data_K562.tsv", sep="\t")
+counts <- read.csv("developing_se/K562_se/main_featcount_K562.tsv", sep="\t")
+column_data <- read.csv("developing_se/K562_se/column_data_K562.tsv", sep="\t")
 
 column_data <- column_data[ order(match(column_data$Experiment.accession, colnames(counts))), ]
 rownames(column_data) <- NULL
 
-row_data <- read.csv("../rowdata.tsv", sep="\t")
+row_data <- read.csv("developing_se/rowdata.tsv", sep="\t")
 ```
 
 ```{r}
@@ -23,7 +23,7 @@ counts <- column_to_rownames(counts, "Gene.id")
 row_data <- column_to_rownames(row_data, "Gene_id")
 se <- SummarizedExperiment(assays = list(counts = data.matrix(counts)), colData = column_data, rowData=row_data)
 
-save(se, file = "se_K562.rda")
+save(se, file = "derived_data/se_K562.rda")
 ```
 
 Filtering se
@@ -44,7 +44,7 @@ gene_type <- gene_type[order(-gene_type$n),]
 wantedGenes <- c('protein_coding',"lncRNA")
 keep2 <- se@elementMetadata@listData$Gene_type ==  wantedGenes 
 se2 <- se[keep2,]
-save(se2, file = "se2_K562.rda")
+save(se2, file = "derived_data/se2_K562.rda")
 
 ```
 
