@@ -57,5 +57,6 @@ derived_data/se_HEPG2.rda\
 #Once we are ready to develop the report, uncomment this section. Replace the ???.png with 
 #any figures that we actually want to include in the report to load them into the Rmd.
 
-#report.pdf: figures/???.png figures/???.png
-#	R -e "rmarkdown::render(\"report.Rmd\", output_format=\"pdf_document\")"
+#report.pdf: derived_data/se_K562.rda figures/???.png figures/???.png
+report.pdf: derived_data/se_K562.rda
+	R -e "rmarkdown::render(\"report.Rmd\", output_format=\"pdf_document\")"

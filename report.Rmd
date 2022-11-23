@@ -4,50 +4,69 @@ author: "Quinn Eberhard, Anastacia Wienecke, Kwame Forbes, and Chenghao Wang"
 output: pdf_document
 ---
 
-###Biological Relevance:
+## Introduction/Biological Relevance
 
-Write the lncRNA/protein-coding RNA differences, 
+Long non-coding RNA (lncRNA) is a form of RNA that is longer than 200 nucleotides and does not encode a protein. For decades, these were considered to be "junk" RNAs as their functions were not yet known, but through extensive experimentation it has become clear that lncRNAs frequently associate with proteins to perform a variety of functions, such as epigentics, chromatin regulation, and altering transcription and translation. One common example is the lncRNA XIST, known for repressing the additional X chromosome in female placental mammals during early development. However, protein coding RNAs also interact with proteins, so this phenomenon alone does not explain what gives lncRNAs their functions, Rather, a combination of *which* proteins bind the RNA and *where* they bind the RNA may be more informative in determining which lncRNAs have similar functions.
 
-Describe wetlab eCLIP methods, data curation.
+One way to measure this is through an assay known as eCLIP (enhanced CrossLinking ImmunoPrecipitation). A protein of interest is added to a cell where it binds to RNAs with relevant sequence or structural motifs. An antibody that is specific to the protein is used to extract the protein, bringing with it the bound RNAs. These RNAs are then fragmented and the portions that were bound the protein are sequenced, resulting in an understanding of both which RNAs bind the protein and what portion of each RNAs *sequence* is relevant to binding the protein. 
 
+This assay is performed one protein at a time, yet Gene Yeo's lab has uploaded 135 K562 assays and 103 HEPG2 assays to the ENCODE database. [Describe wetlab eCLIP methods, data curation] Here we use this data to construct a **protein binding profile** for each RNA transcript in the cell in order to determine which proteins bind or do not bind to each transcript. 
 
-###Methods
-###Constructing the SummarizedExperiments
-Here we are conducting an analysis on two human cell types: K562 and HEPG2 cells.
-K562 are erythroleukemia cancer cells from a 52 year old female and HEPG2 are hepatocellular carcinoma cells from a 15 year old boy. Both have been thoroughly studied for biological analyses but here we study them in the context of eCLIP asays.
-
-eCLIP stands for enhanced cross-linking immunoprecipitation, which is an assay where the RNA of a cell is screened against a singular target protein to identify the location and frequency of RNA-protein binding. This can be performed as many independent experiments, varying the target protein each time, to develop a rather large RBP dataset. One scientist particularly renown for this process is Gene Yeo, whose data we further analyze here - accessed through ENCODE. He and his lab have performed eCLIP for K562 cells on (137?) different target proteins and in HEPG2 cells on (???) proteins.
-
-ENCODE provides these datasets for easy processed-file downloads, so we downloaded the bam files for all experiments for each cell type:
-xargs -L 1 curl -O -J -L < download_K562_files.txt
-Note that all downloaded .bam files and merged .bam files have been excluded from the repository, however, the downloaded metadata_K562.tsv file is included in the developing_se/ directory of this repository. This includes information on all the file types that were downloaded for each experiment which was later used to develop the colData() of the summarized experiments.
-
-The file "bam_file_mappings.tsv" was generated from the python script `map_bam_replicates.py`
-
-There were two replicates for each experiment, so we merged the bam files using `samtools merge` for each replicate, then ran featurecounts to determine the RBP counts (script in serial_bam_merge.sh)
+In this report, we determine differences between the protein association to RNA transcripts in K562 and HEPG2 cells and investigate whether RNA function can be predicted from which proteins it binds.
 
 
-The gencode.v39.basic.annotation.gtf genome was downloaded from GENCODE for the GRCh38.p13 and was used for featureCount runs. This genome/gtf file informed the development of the rowData() of the summarized experiments.
+## Methods
+### Constructing the SummarizedExperiments
+Here we analyzed the RNA-protein binding preferences of two human cell lines: K562 and HEPG2 cells. K562 cells are from a 52 year old feamle with erythroleukemia cancer and HEPG2 cells are hepatocellular carcinoma cells from a 15 year old boy. Both have been thoroughly studied for biological analyses but here we wanted to identify similarities and differences between them in the context of eCLIP assays.
 
-Another component of the rowData() development was to determine the subcellular localization of different RNAs. Although this data is not readily derived from the eCLIP experiments of Gene Yeo, we instead used the total and fractionated rna-seq experiments of Thomas Gingeras, the file download information is found in developing_se/localization/ directory as download_polyA_plus_cytosol.txt, and download_total_rnaseq_nucleoplasmic.txt. From this data, we performed an alignment in the localization/...sh file and constructed tables using localization/...py. The sub-cellular location was decided by calculating the ...? for each RNA in the genome. This is included in the `sub-cellular localization (nuclear)` section of the rowData.
+ENCODE provides these datasets for easy processed-file downloads, so we downloaded the bam files for all experiments for each cell type.
 
-The SummarizedExperiment was developed by the code in load_se.R and the object is stored in the K562_se.Rda to be easily accessed. The individual matrices of the asssay(), colData(), and rowData() are also included in the files K562_assay.tsv, K562_colData.tsv, and K562_rowData.tsv. 
+```{bash}
+#xargs -L 1 curl -O -J -L < download_K562_files.txt
+```
 
-This process was repeated with the developing_se/HEPG2_se/ directory.
+These bam files were not included in this repository. However, the downloaded `metadata_K562.tsv` file is included in the `developing_se/` directory which includes information on all of the downloaded files for each experiment. which was later used to develop the colData() of the SummarizedExperiments.
 
-##Data Analysis
+The file `bam_file_mappings.tsv` was generated from the python script `map_bam_replicates.py`. There were two replicates for each experiment, so we merged the bam files using `samtools merge` for each replicate, then ran featureCounts to determine the RBP counts (script in `serial_bam_merge.sh`). featureCounts is a tool in the Subreads package developed by Yang Liao and Wei Shi that identifies the genomic features of sequence reads through ---. This allowed us to determine for each experiment how many reads mapped to each transcript. This would ultimately develop one column of the SummarizedExperiment. The `gencode.v39.basic.annotation.gtf` genome was downloaded from GENCODE for GRCh38.p13 and was used for featureCount runs. This gtf file then also informed the development of the rowData() of the summarized experiments.
+
+The SummarizedExperiment was developed by the code in `loading_K562_se_object.Rmd` and the .Rda object is generated and stored in the derived_data/ directory of the repository upon a `make` build. The individual matrices of the asssay(), colData(), and rowData() are also included in the files K562_assay.tsv, K562_colData.tsv, and K562_rowData.tsv. 
+
+The inital matrices were stored in `se_K562.rda` and `se_HEPG2.rda`.
+
+```{r}
+load("derived_data/se_K562.rda")
+se
+```
+The assay of the SE provides the counts for each experiment, with each row consisting of a specific RNA
+
+### Filtering the SummarizedExperiments
+
+Given that sequence fragments may map to more than one region of the genome, it is always possible that reads may be misaligned and in the context of eCLIP data this would indicate a false RNA-protein binding interaction. To help filter these out, transcripts without any aligned counts were removed and only genes classified as `protein_coding` and `lncRNA` were retained in `se2_K562.rda` and `se2_HEPG2.rda`.
 
 
-
-###Results
-
-
-###Discussion
+<Chenghao: Include your analysis methods here :) >
 
 
-###Conclusions
+## Data Analysis
+### Heat Map Analysis
 
+<Kwame: Methods here>
 
+### Clustering Analysis
 
-###References
+<Anastacia: Methods here>
+
+## Results
+
+<Describe results here. Mostly figures, I presume>
+
+## Discussion
+
+<Discuss your results here>
+
+## Conclusions
+
+<Major take away conclusions>
+
+## References
 
