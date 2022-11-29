@@ -6,18 +6,19 @@ output: pdf_document
 
 ## Introduction/Biological Relevance
 
-Long non-coding RNA (lncRNA) is a form of RNA that is longer than 200 nucleotides and does not encode a protein. For decades, these were considered to be "junk" RNAs as their functions were not yet known, but through extensive experimentation it has become clear that lncRNAs frequently associate with proteins to perform a variety of functions, such as epigentics, chromatin regulation, and altering transcription and translation. One common example is the lncRNA XIST, known for repressing the additional X chromosome in female placental mammals during early development. However, protein coding RNAs also interact with proteins, so this phenomenon alone does not explain what gives lncRNAs their functions, Rather, a combination of *which* proteins bind the RNA and *where* they bind the RNA may be more informative in determining which lncRNAs have similar functions.
+Long non-coding RNA (lncRNA) is a form of RNA that is longer than 200 nucleotides and does not encode a protein. For decades, these were considered to be "junk" RNAs as their functions were not yet known, but through extensive experimentation it has become clear that lncRNAs frequently associate with proteins to perform a variety of functions, such as epigenetics, chromatin regulation, and altering transcription and translation. One common example is the lncRNA XIST, known for repressing the additional X chromosome in female placental mammals during early development. However, protein coding RNAs also interact with proteins, so this phenomenon alone does not explain what gives lncRNAs their functions, Rather, a combination of *which* proteins bind the RNA and *where* they bind the RNA may be more informative in determining which lncRNAs have similar functions.
 
-One way to measure this is through an assay known as eCLIP (enhanced CrossLinking ImmunoPrecipitation). A protein of interest is added to a cell where it binds to RNAs with relevant sequence or structural motifs. An antibody that is specific to the protein is used to extract the protein, bringing with it the bound RNAs. These RNAs are then fragmented and the portions that were bound the protein are sequenced, resulting in an understanding of both which RNAs bind the protein and what portion of each RNAs *sequence* is relevant to binding the protein. 
+One way to measure this is through an assay known as eCLIP (enhanced CrossLinking ImmunoPrecipitation). A protein of interest is added to a cell where it binds to RNAs with relevant sequence or structural motifs. An antibody that is specific to the protein is used to extract the protein, bringing with it the bound RNAs. These RNAs are then fragmented and the portions that were bound to the protein are sequenced, resulting in an understanding of both which RNAs bind the protein and what portion of each RNAs *sequence* is relevant to binding the protein.
 
-This assay is performed one protein at a time, yet Gene Yeo's lab has uploaded 135 K562 assays and 103 HEPG2 assays to the ENCODE database. [Describe wetlab eCLIP methods, data curation] Here we use this data to construct a **protein binding profile** for each RNA transcript in the cell in order to determine which proteins bind or do not bind to each transcript. 
+This assay is performed one protein at a time, yet Gene Yeo's lab has uploaded 135 K562 assays and 103 HEPG2 assays to the ENCODE database. [Describe wetlab eCLIP methods, data curation] Here we use this data to construct a **protein binding profile** for each RNA transcript in the cell in order to determine which proteins bind or do not bind to each transcript.
 
-In this report, we determine differences between the protein association to RNA transcripts in K562 and HEPG2 cells and investigate whether RNA function can be predicted from which proteins it binds.
-
+In this report, we determine differences between the protein association to RNA transcripts in K562 and HEPG2 cells and investigate whether RNA function can be predicted from which proteins it binds. [Quick note: I liked that you mentioned how K562 cells have two X chromosomes and HEPG2 cells have one. So we expect to see a difference for Xist in both. You laid this out more eloquently in your presentation and I thought it would be helpful to mention it in here too :)]
 
 ## Methods
+
 ### Constructing the SummarizedExperiments
-Here we analyzed the RNA-protein binding preferences of two human cell lines: K562 and HEPG2 cells. K562 cells are from a 52 year old feamle with erythroleukemia cancer and HEPG2 cells are hepatocellular carcinoma cells from a 15 year old boy. Both have been thoroughly studied for biological analyses but here we wanted to identify similarities and differences between them in the context of eCLIP assays.
+
+Here we analyzed the RNA-protein binding preferences of two human cell lines: K562 and HEPG2 cells. K562 cells are from a 52 year old female with erythroleukemia cancer, and HEPG2 cells are hepatocellular carcinoma cells from a 15 year old boy. Both have been thoroughly studied for biological analyses but here we wanted to identify similarities and differences between them in the context of eCLIP assays.
 
 ENCODE provides these datasets for easy processed-file downloads, so we downloaded the bam files for all experiments for each cell type.
 
@@ -29,36 +30,426 @@ These bam files were not included in this repository. However, the downloaded `m
 
 The file `bam_file_mappings.tsv` was generated from the python script `map_bam_replicates.py`. There were two replicates for each experiment, so we merged the bam files using `samtools merge` for each replicate, then ran featureCounts to determine the RBP counts (script in `serial_bam_merge.sh`). featureCounts is a tool in the Subreads package developed by Yang Liao and Wei Shi that identifies the genomic features of sequence reads through ---. This allowed us to determine for each experiment how many reads mapped to each transcript. This would ultimately develop one column of the SummarizedExperiment. The `gencode.v39.basic.annotation.gtf` genome was downloaded from GENCODE for GRCh38.p13 and was used for featureCount runs. This gtf file then also informed the development of the rowData() of the summarized experiments.
 
-The SummarizedExperiment was developed by the code in `loading_K562_se_object.Rmd` and the .Rda object is generated and stored in the derived_data/ directory of the repository upon a `make` build. The individual matrices of the asssay(), colData(), and rowData() are also included in the files K562_assay.tsv, K562_colData.tsv, and K562_rowData.tsv. 
+The SummarizedExperiment was developed by the code in `loading_K562_se_object.Rmd` and the .Rda object is generated and stored in the derived_data/ directory of the repository upon a `make` build. The individual matrices of the asssay(), colData(), and rowData() are also included in the files K562_assay.tsv, K562_colData.tsv, and K562_rowData.tsv.
 
-The inital matrices were stored in `se_K562.rda` and `se_HEPG2.rda`.
+The initial matrices were stored in `se_K562.rda` and `se_HEPG2.rda`.
 
-```{r}
-load("derived_data/se_K562.rda")
+```{r warning=F}
+load("developing_se/K562_se/se_K562.rda")
 se
 ```
+
 The assay of the SE provides the counts for each experiment, with each row consisting of a specific RNA
 
 ### Filtering the SummarizedExperiments
 
 Given that sequence fragments may map to more than one region of the genome, it is always possible that reads may be misaligned and in the context of eCLIP data this would indicate a false RNA-protein binding interaction. To help filter these out, transcripts without any aligned counts were removed and only genes classified as `protein_coding` and `lncRNA` were retained in `se2_K562.rda` and `se2_HEPG2.rda`.
 
-
-<Chenghao: Include your analysis methods here :) >
-
+\<Chenghao: Include your analysis methods here :) \>
 
 ## Data Analysis
+
 ### Heat Map Analysis
 
-<Kwame: Methods here>
+\<Kwame: Methods here\>
 
-### Clustering Analysis
+### Clustering Analysis - K562 Cells
 
-<Anastacia: Methods here>
+For the clustering analysis, we use a filtered SummarizedExperiment. It contains data for just mRNAs and lncRNAs with nonzero eCLIP data. We narrow our focus to these two types of RNAs. The reasons are that they are very well represented in our dataset, and that unlike mRNAs, the functions of almost all lncRNAs remain a mystery. If we see that similar mRNAs are bound by similar proteins, then perhaps this might also hold true for lncRNAs.
+
+The first step is to load the SummarizedExperiment. In "assay(se)", the rows are the ENSEMBL gene ID's and the columns are sample ID's (note that each sample in an eCLIP experiment with a single, unique protein).
+
+```{r warning=F}
+load("C:/Users/anastacia/Desktop/784_RNA_teal/developing_se/K562_se/se2_K562.rda")
+se2
+```
+
+Judging by the counts data, some proteins heavily bind our RNAs, and others bind more lightly. Unsurprisingly (in hindsight), working with the unscaled data produced poor clustering results because of this wide spread. As such, we scale the counts data by column sums, normalizing the protein counts. In addition, we also remove any RNAs relatively unbound by proteins (RNAs with row sums less than 100).
+
+```{r}
+### scale assay(se) by column sums, multiply by 10e7 and round so that the values we work with are integers
+prot.sum   <- colSums(assay(se2))
+assay(se2) <- scale(assay(se2), center=FALSE, scale=prot.sum) * 10e7 %>%
+              round(digits = 0)
+
+### remove RNAs with low eCLIP data
+rna.sum  <- rowSums(assay(se2))
+genes    <- rownames(assay(se2))
+genes.hi <- genes[which(rna.sum>100)]
+
+### recreate SummarizedExperiment
+se <- SummarizedExperiment(assays=list(counts=assay(se2)[genes.hi,]^0.25), colData = colData(se2), rowData=rowData(se2)[genes.hi,])
+```
+
+One preliminary question is: how similar are the 135 eCLIP proteins in terms of their binding to mRNAs and lncRNAs?
+
+```{r}
+### PCA on eCLIP proteins
+prot.pca <- prcomp(t(assay(se)))
+prot.pca.var <- prot.pca$sdev^2
+prot.pca.var.prop <- prot.pca.var/sum(prot.pca.var) * 100
+
+prot.PC1PC2 <- data.frame(prot.pca$x[,1:2])
+prot.PC1PC2[rownames(colData(se)),"proteins"] <- colData(se)$Experiment.target
+ggplot(prot.PC1PC2) + geom_point(aes(PC1, PC2), size = 1) +
+  ggtitle('PCA results for all 135 eCLIP proteins') +
+  xlab('PC1 (11.36%)') +
+  ylab('PC2 (8.62%)')
+```
+
+From the plot above, we see that YBX3 is way out in the distance. Perhaps this is why PC1 and PC2 explain such a small percent of the variance. What happens to to the PCA results when we remove YBX3?
+
+```{r}
+### what happens when we remove YBX3?
+idx <- which(prot.PC1PC2$PC1 == max(prot.PC1PC2$PC1))
+name <- rownames(prot.PC1PC2[50,])
+no.ybx3 <- subset(assay(se), select=-c(ENCSR529FKI))
+
+prot.pca <- prcomp(t(no.ybx3))
+prot.pca.var <- prot.pca$sdev^2
+prot.pca.var.prop <- prot.pca.var/sum(prot.pca.var) * 100
+
+prot.PC1PC2 <- data.frame(prot.pca$x[,1:2])
+ggplot(prot.PC1PC2) + geom_point(aes(PC1, PC2), size = 1) +
+  ggtitle('PCA results for 134 eCLIP proteins (no YBX3)') +
+  xlab('PC1 (9.64%)') +
+  ylab('PC2 (8.21%)')
+```
+
+Now PC1 and PC2 explain even less of the variance! We can conclude that the eCLIP proteins are all very different in their scaled binding of RNAs. It is however intriguing that we see two clusters on the above plot. Perhaps one cluster of proteins more frequently binds lncRNAs? We can delve in to this more by determining which proteins are in the bottom cluster and which are in the top cluster, and then per cluster, computing the average eCLIP counts per lncRNA and per mRNA.
+
+```{r}
+bot.cluster <- prot.PC1PC2[prot.PC1PC2$PC1 < -50 & prot.PC1PC2$PC2 < 0,]
+top.cluster <- prot.PC1PC2[prot.PC1PC2$PC1 > -50 | prot.PC1PC2$PC2 > 0,]
+
+lncRNA.id <- rowData(se)$Gene_type=='lncRNA'
+prtcod.id <- rowData(se)$Gene_type=='protein_coding'
+genes   <- rownames(rowData(se))
+lncRNAs <- genes[lncRNA.id]
+prtcods <- genes[prtcod.id]
+
+### does one cluster seem to primarily bind lncRNAs while the other mRNAs?
+lnc.top <- rowSums( assay(se)[lncRNAs,rownames(top.cluster)] ) / length(top.cluster)
+lnc.bot <- rowSums( assay(se)[lncRNAs,rownames(bot.cluster)] ) / length(bot.cluster)
+
+prt.top <- rowSums( assay(se)[prtcods,rownames(top.cluster)] ) / length(top.cluster)
+prt.bot <- rowSums( assay(se)[prtcods,rownames(bot.cluster)] ) / length(bot.cluster)
+
+### a = lncRNAs bound by proteins in    top cluster
+### b = lncRNAs bound by proteins in bottom cluster
+### c =   mRNAs bound by proteins in    top cluster
+### d =   mRNAs bound by proteins in bottom cluster
+library(vioplot)
+vioplot(lnc.top, lnc.bot, prt.top, prt.bot,
+        names=c('a','b','c','d'))
+title(ylab="mean proteins counts for an RNA across a cluster")
+```
+
+Before we continue, let's color-code lncRNAs (teal) and mRNAs (coral) in the SummarizedExperiment. Let's also define a density function. This will all be helpful later.
+
+```{r}
+### color-code lncRNAs and mRNAs in the se
+rowData(se)[lncRNA.id, "colors"] <- "#f34c28"
+rowData(se)[prtcod.id, "colors"] <- "#2ca1d7"
+
+### define density function
+theme_set(theme_bw(base_size = 16))
+get_density <- function(x, y, ...) {
+  dens <- MASS::kde2d(x, y, ...)
+  ix <- findInterval(x, dens$x)
+  iy <- findInterval(y, dens$y)
+  ii <- cbind(ix, iy)
+  return(dens$z[ii])
+}
+```
+
+The main subject we would like to explore is clustering of lncRNAs and mRNAs based on the proteins they bind to. To do so, we run a PCA on the scaled counts data in the "assay(se)".
+
+```{r}
+### PCA on mRNAs and lncRNAs
+se.pca <- prcomp(assay(se))
+se.pca.var <- se.pca$sdev^2
+se.pca.var.prop <- se.pca.var/sum(se.pca.var) * 100
+se.PC1PC2 <- data.frame(se.pca$x[,1:2])
+se.PC1PC2$colors <- rowData(se)$colors
+
+ggplot(se.PC1PC2) +
+  geom_point(aes(PC1, PC2, color = colors), size = 1) +
+  theme(legend.position="none") +
+  ggtitle('PCA results for mRNAs (coral) and lncRNAs (teal)') +
+  xlab('PC1 (90.46%)') +
+  ylab('PC2 (0.9305%)')
+```
+
+Based on the plot above, we seem to see a slight clustering of mRNAs vs. lncRNAs. It is difficult to draw conclusions from this plot because there is no way of knowing the density of the datapoints. Below, we will visualize results for lncRNAs and mRNAs separately, accounting for density.
+
+```{r warning=F}
+### show results for lncRNAs only
+se.lncRNA <- se.PC1PC2[lncRNAs,]
+se.lncRNA$density <- get_density(se.lncRNA$PC1, se.lncRNA$PC2, n = 100)
+ggplot(se.lncRNA) +
+  geom_point(aes(PC1, PC2, color = density)) +
+  scale_color_viridis() +
+  xlim(-50, 300) +
+  ylim(-30,  20) +
+  ggtitle('PCA results specific to lncRNAs') +
+  xlab('PC1 (90.46%)') +
+  ylab('PC2 (0.9305%)')
+```
+
+```{r warning=F}
+### show results for mRNAs only
+se.prtcod <- se.PC1PC2[prtcods,]
+se.prtcod$density <- get_density(se.prtcod$PC1, se.prtcod$PC2, n = 100)
+ggplot(se.prtcod) +
+  geom_point(aes(PC1, PC2, color = density)) +
+  scale_color_viridis() +
+  xlim(-50, 300) +
+  ylim(-30,  20) +
+  ggtitle('PCA results specific to mRNAs') +
+  xlab('PC1 (90.46%)') +
+  ylab('PC2 (0.9305%)')
+```
+
+Interesting that we see two high density areas on the PCA plot for mRNAs. Let's explore these areas further with a GO-term enrichment analysis. Note that we did try to repeat this analysis for lncRNAs, but not surprisingly, there aren't enough GO terms assigned to lncRNAs.
+
+```{r warning=F}
+library(AnnotationHub)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+hub <-AnnotationHub()
+
+### let's first look at the left-most high-density area
+spot1 <- se.prtcod[which( se.prtcod$PC1 > -50 &
+                          se.prtcod$PC1 < -25 &
+                          se.prtcod$PC2 > -3 &
+                          se.prtcod$PC2 <  3),]
+gene1 <- gsub('\\..*', '', rownames(spot1))
+GOE1 <- enrichGO(gene          = gene1,
+                 keyType       = "ENSEMBL",
+                 OrgDb         = org.Hs.eg.db, 
+                 ont           = "BP",
+                 pAdjustMethod = "BH",
+                 pvalueCutoff  = 0.01,
+                 qvalueCutoff  = 0.05,
+                 readable      = TRUE)
+dotplot(GOE1)
+
+### let's now look at the right-most high-density area
+spot2 <- se.prtcod[which( se.prtcod$PC1 > 30 &
+                          se.prtcod$PC1 < 70 &
+                          se.prtcod$PC2 > -6 &
+                          se.prtcod$PC2 <  6),]
+gene2 <- gsub('\\..*', '', rownames(spot2))
+GOE2 <- enrichGO(gene          = gene2,
+                 keyType       = "ENSEMBL",
+                 OrgDb         = org.Hs.eg.db, 
+                 ont           = "BP",
+                 pAdjustMethod = "BH",
+                 pvalueCutoff  = 0.01,
+                 qvalueCutoff  = 0.05,
+                 readable      = TRUE)
+dotplot(GOE2)
+
+### let's finally look at all the data points
+gene3 <- gsub('\\..*', '', rownames(assay(se)))
+GOE3 <- enrichGO(gene          = gene3,
+                 keyType       = "ENSEMBL",
+                 OrgDb         = org.Hs.eg.db, 
+                 ont           = "BP",
+                 pAdjustMethod = "BH",
+                 pvalueCutoff  = 0.01,
+                 qvalueCutoff  = 0.05,
+                 readable      = TRUE)
+dotplot(GOE3)
+
+###quick side analysis for which RNAs are most heavily bound to YBX3
+#ensg.ids <- rownames(assay(se))[assay(se)[,'ENCSR529FKI'] > 20]
+#gene3 <- gsub('\\..*', '', ensg.ids)
+#GOE3 <- enrichGO(gene          = gene3,
+#                 keyType       = "ENSEMBL",
+#                 OrgDb         = org.Hs.eg.db, 
+#                 ont           = "MF",
+#                 pAdjustMethod = "BH",
+#                 pvalueCutoff  = 0.01,
+#                 qvalueCutoff  = 0.05,
+#                 readable      = TRUE)
+#dotplot(GOE3)
+```
+
+### Clustering Analysis - HEPG2 Cells
+
+We repeat the clustering analysis performed on K562 cells. This time, we focus on HEPG2 cells.
+
+Step 1: Load the SummarizedExperiment for HEPG2.
+
+```{r warning=F}
+load("C:/Users/anastacia/Desktop/784_RNA_teal/developing_se/HEPG2_se/se2_HEPG2.rda")
+se2
+```
+
+Step 2: Scale counts data by column (eCLIP experiment), remove RNAs relatively unbound by proteins.
+
+```{r}
+### scale assay(se) by column sums, multiply by 10e7 and round so that the values we work with are integers
+prot.sum   <- colSums(assay(se2))
+assay(se2) <- scale(assay(se2), center=FALSE, scale=prot.sum) * 10e7 %>%
+              round(digits = 0)
+
+### remove RNAs with low eCLIP data
+rna.sum  <- rowSums(assay(se2))
+genes    <- rownames(assay(se2))
+genes.hi <- genes[which(rna.sum>100)]
+
+### recreate SummarizedExperiment
+se <- SummarizedExperiment(assays=list(counts=assay(se2)[genes.hi,]^0.25), colData = colData(se2), rowData=rowData(se2)[genes.hi,])
+```
+
+Step 3: Using data for 103 available eCLIP experiments in HEPG2 cells, figure out how similar the 103 eCLIP proteins are in terms of their binding to mRNAs and lncRNAs.
+
+```{r}
+### PCA on eCLIP proteins
+prot.pca <- prcomp(t(assay(se)))
+prot.pca.var <- prot.pca$sdev^2
+prot.pca.var.prop <- prot.pca.var/sum(prot.pca.var) * 100
+
+prot.PC1PC2 <- data.frame(prot.pca$x[,1:2])
+prot.PC1PC2[rownames(colData(se)),"proteins"] <- colData(se)$Experiment.target
+ggplot(prot.PC1PC2) + geom_point(aes(PC1, PC2), size = 1) +
+  ggtitle('PCA results for all 103 eCLIP proteins') +
+  xlab('PC1 (14.86%)') +
+  ylab('PC2 (10.14%)')
+```
+
+Step 4: Color-code lncRNAs (teal) and mRNAs (coral) in the SummarizedExperiment. This will be helpful later.
+
+```{r}
+lncRNA.id <- rowData(se)$Gene_type=='lncRNA'
+prtcod.id <- rowData(se)$Gene_type=='protein_coding'
+genes   <- rownames(rowData(se))
+lncRNAs <- genes[lncRNA.id]
+prtcods <- genes[prtcod.id]
+### color-code lncRNAs and mRNAs in the se
+rowData(se)[lncRNA.id, "colors"] <- "#f34c28"
+rowData(se)[prtcod.id, "colors"] <- "#2ca1d7"
+```
+
+Step 5: Explore the clustering of lncRNAs and mRNAs based on the proteins they bind to.
+
+```{r}
+### PCA on mRNAs and lncRNAs
+se.pca <- prcomp(assay(se))
+se.pca.var <- se.pca$sdev^2
+se.pca.var.prop <- se.pca.var/sum(se.pca.var) * 100
+se.PC1PC2 <- data.frame(se.pca$x[,1:2])
+se.PC1PC2$colors <- rowData(se)$colors
+
+ggplot(se.PC1PC2) +
+  geom_point(aes(PC1, PC2, color = colors), size = 1) +
+  theme(legend.position="none") +
+  ggtitle('PCA results for mRNAs (coral) and lncRNAs (teal)') +
+  xlab('PC1 (91.36%)') +
+  ylab('PC2 (1.186%)')
+```
+
+Step 6: Visualize PCA results for lncRNAs only, accounting for density.
+
+```{r warning=F}
+### show results for lncRNAs only
+se.lncRNA <- se.PC1PC2[lncRNAs,]
+se.lncRNA$density <- get_density(se.lncRNA$PC1, se.lncRNA$PC2, n = 100)
+ggplot(se.lncRNA) +
+  geom_point(aes(PC1, PC2, color = density)) +
+  scale_color_viridis() +
+  xlim(-50, 400) +
+  ylim(-60,  25) +
+  ggtitle('PCA results specific to lncRNAs') +
+  xlab('PC1 (91.36%)') +
+  ylab('PC2 (1.186%)')
+```
+
+Step 7: Now visualize PCA results for mRNAs only, accounting for density.
+
+```{r warning=F}
+### show results for mRNAs only
+se.prtcod <- se.PC1PC2[prtcods,]
+se.prtcod$density <- get_density(se.prtcod$PC1, se.prtcod$PC2, n = 100)
+ggplot(se.prtcod) +
+  geom_point(aes(PC1, PC2, color = density)) +
+  scale_color_viridis() +
+  xlim(-50, 400) +
+  ylim(-60,  25) +
+  ggtitle('PCA results specific to mRNAs') +
+  xlab('PC1 (91.36%)') +
+  ylab('PC2 (1.186%)')
+```
+
+Step 8: For the two high-density clusters on the mRNA-specific PCA, explore further with a GO-term enrichment analysis.
+
+```{r warning=F}
+library(AnnotationHub)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+hub <-AnnotationHub()
+
+### let's first look at the left-most high-density area
+spot1 <- se.prtcod[which( se.prtcod$PC1 > -50 &
+                          se.prtcod$PC1 < -20 &
+                          se.prtcod$PC2 >  0 &
+                          se.prtcod$PC2 <  3),]
+gene1 <- gsub('\\..*', '', rownames(spot1))
+GOE1 <- enrichGO(gene          = gene1,
+                 keyType       = "ENSEMBL",
+                 OrgDb         = org.Hs.eg.db, 
+                 ont           = "BP",
+                 pAdjustMethod = "BH",
+                 pvalueCutoff  = 0.01,
+                 qvalueCutoff  = 0.05,
+                 readable      = TRUE)
+dotplot(GOE1)
+
+### let's now look at the right-most high-density area
+spot2 <- se.prtcod[which( se.prtcod$PC1 > 25 &
+                          se.prtcod$PC1 < 50 &
+                          se.prtcod$PC2 > -5 &
+                          se.prtcod$PC2 <  5),]
+gene2 <- gsub('\\..*', '', rownames(spot2))
+GOE2 <- enrichGO(gene          = gene2,
+                 keyType       = "ENSEMBL",
+                 OrgDb         = org.Hs.eg.db, 
+                 ont           = "BP",
+                 pAdjustMethod = "BH",
+                 pvalueCutoff  = 0.01,
+                 qvalueCutoff  = 0.05,
+                 readable      = TRUE)
+dotplot(GOE2)
+
+### let's finally look at all the data points
+gene3 <- gsub('\\..*', '', rownames(assay(se)))
+GOE3 <- enrichGO(gene          = gene3,
+                 keyType       = "ENSEMBL",
+                 OrgDb         = org.Hs.eg.db, 
+                 ont           = "BP",
+                 pAdjustMethod = "BH",
+                 pvalueCutoff  = 0.01,
+                 qvalueCutoff  = 0.05,
+                 readable      = TRUE)
+dotplot(GOE3)
+```
 
 ## Results
 
-<Describe results here. Mostly figures, I presume>
+\<Describe results here. Mostly figures, I presume\>
+
+### Clustering Analysis - Comparing K562 and HEPG2 Cells
+
+Looking at the the PCA results for the 135 eCLIP proteins in K562 cells, we see that though the variance explained by PC1 and PC2 is small, YBX3 clearly stands out. In HEPG2 cells, 103 eCLIP experiments were carried out, which could explain the different in PCA results for the two cell lines. YBX3 eCLIP was not conducted in HEPG2.
+
+YBX3 is a Y-Box binding protein and has been implicated in regulating amino acid homeostasis (Cooke et al, 2019). Its Entrez gene summary lists it as a cellular response to tumor necrosis factor and a negative regulator of programmed cell death. In chronic myeloid leukemia specifically, YBX3 is a regulator of proliferation (Sears et al, 2010). It could be interesting to study its RNA binding in a non-cancerous cell line. We did a GO enrichment analysis for the RNAs most bound by YBX3, but the results were inconclusive (code is commented out in the methods section).
+
+Perhaps the most intriguing result of the clustering analysis is that mRNAs and lncRNAs cluster somewhat independently based on their binding of proteins. Unlike mRNAs, the functions of most lncRNAs are completely unknown. The area where the mRNA and lncRNAs clusters overlap most contains mRNAs enriched for ncRNA processing, ribosome biogenesis, rRNA metabolic process, tRNA metabolic process, rRNA processing, RNA modification, ... Perhaps the lncRNAs also in this overlap region have similar roles.
+
+Curious to see where Xist is located in the "PCA Results for lncRNAs plot" for K562, we found that it is right beside the lncRNA Xact. This pair stand relatively apart from the other lncRNAs. Whereas Xist is responsible for silencing an X chromosome in XX females, Xact is involved in X chromosome activation. The two work antagonistically (Vallot et al, 2017). We identified other pairs of lncRNAs and attempted to see if they were involved in similar processes, but there were too many unknowns to make any headway. As more is learned about lncRNAs, perhaps given a plot similar to the PCA, a "connect-the-dot" approach can be used. Specifically, if an unknown lncRNA is positioned very nearby a group of known lncRNAs, then perhaps it could give insight into the possible function of the unknown lncRNA.
 
 ## Discussion
 
@@ -70,3 +461,8 @@ Given that sequence fragments may map to more than one region of the genome, it 
 
 ## References
 
+Cooke, A., Schwarzl, T., Huppertz, I., Kramer, G., Mantas, P., Alleaume, A. M., Huber, W., Krijgsveld, J., & Hentze, M. W. (2019). The RNA-Binding Protein YBX3 Controls Amino Acid Levels by Regulating SLC mRNA Abundance. Cell reports, 27(11), 3097--3106.e5. <https://doi.org/10.1016/j.celrep.2019.05.039>
+
+Sears, D., Luong, P., Yuan, M., Nteliopoulos, G., Man, Y. K., Melo, J. V., & Basu, S. (2010). Functional phosphoproteomic analysis reveals cold-shock domain protein A to be a Bcr-Abl effector-regulating proliferation and transformation in chronic myeloid leukemia. Cell death & disease, 1(11), e93. <https://doi.org/10.1038/cddis.2010.72>
+
+Vallot, C., Patrat, C., Collier, A. J., Huret, C., Casanova, M., Liyakat Ali, T. M., Tosolini, M., Frydman, N., Heard, E., Rugg-Gunn, P. J., & Rougeulle, C. (2017). XACT Noncoding RNA Competes with XIST in the Control of X Chromosome Activity during Human Early Development. Cell stem cell, 20(1), 102--111. <https://doi.org/10.1016/j.stem.2016.10.014>
