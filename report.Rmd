@@ -547,9 +547,7 @@ GOE3 <- enrichGO(gene          = gene3,
 dotplot(GOE3)
 ```
 
-## Results
-
-\<Describe results here. Mostly figures, I presume\>
+## Discussion
 
 ### Clustering Analysis - Comparing K562 and HEPG2 Cells
 
@@ -559,11 +557,9 @@ YBX3 is a Y-Box binding protein and has been implicated in regulating amino acid
 
 Perhaps the most intriguing result of the clustering analysis is that mRNAs and lncRNAs cluster somewhat independently based on their binding of proteins. Unlike mRNAs, the functions of most lncRNAs are generally unknown. The area where the mRNA and lncRNAs clusters overlap most contains mRNAs enriched for ncRNA processing, ribosome biogenesis, rRNA metabolic process, tRNA metabolic process, rRNA processing, RNA modification, ... Perhaps the lncRNAs also in this overlapped region have similar roles.
 
-Curious to see where Xist is located in the "PCA Results for lncRNAs plot" for K562, we found that it is right beside the lncRNA Xact. This pair stand relatively apart from the other lncRNAs. Whereas Xist is responsible for silencing an X chromosome in XX females, Xact is involved in X chromosome activation. The two work antagonistically (Vallot et al, 2017). We identified other pairs of lncRNAs and attempted to see if they were involved in similar processes, but there were too many unknowns to make any headway. As more is learned about lncRNAs, perhaps given a plot similar to the PCA, a "connect-the-dot" approach can be used. Specifically, if an unknown lncRNA is positioned very near to a group of known lncRNAs, then perhaps it could give insight into the possible function of the unknown lncRNA.
+Curious to see where XIST is located in the "PCA Results for lncRNAs plot" for K562, we found that it is right beside the lncRNA XACT. This pair stand relatively apart from the other lncRNAs. Whereas XIST is responsible for silencing an X chromosome in XX females, XACT is involved in X chromosome activation. The two work antagonistically (Vallot et al, 2017). XIST and XACT are both involved with the X chromosome, and excitingly not much is known about how XACT functions, the deep similarities in their RBP profiles may indicate the XACT is sequestering the RBPs critical for XIST to function. This might be possible if a protein like SPEN is not bound by XACT, preventing the RNA from actually performing the function of XIST despite having all the other protein resources necessary for repression. Unfortunately, this is a limitation of the dataset as SPEN has not be observed in eCLIP data and cannot be directly compared. 
 
-## Discussion
-
-<Discuss your results here>
+We identified other pairs of lncRNAs and attempted to see if they were involved in similar processes, but there were too many unknowns to make much headway. We do recognize that near XIST and XACT are the lncRNAs NEAT1 and MALAT1, both of which are involved in the formation and/or function of speckles, which are complex regions of local transcriptional activation. We also notice a particular long mRNA, FASN, is found in the farther reaches of the PCA plot, near these other four lncRNAs. This might indicate some amount of overlap with predicting length, as a longer RNA is more likely to bind more proteins, influencing the RBP profiles. Overall, these findings lead us to believe that a complex combination of the function, non-protein binding targets, and length of the transcript may all influence clustering proximity between RNAs. As more is learned about lncRNAs, perhaps given a plot similar to the PCA, a "connect-the-dot" approach can be used. Specifically, if an unknown lncRNA is positioned very near to a group of known lncRNAs, then perhaps it could give insight into the possible function of the unknown lncRNA.
 
 ## Conclusions
 
