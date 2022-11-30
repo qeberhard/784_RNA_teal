@@ -4,13 +4,32 @@ author: "Quinn Eberhard, Anastacia Wienecke, Kwame Forbes, and Chenghao Wang"
 output: pdf_document
 ---
 
+```{r echo=FALSE}
+library(SummarizedExperiment, quietly=T)
+library(dplyr)
+library(readr)
+library(tibble)
+library(GenomicRanges)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(GO.db)
+library(MASS)
+library(ggplot2)
+library(viridis)
+library(clusterProfiler)
+library(pheatmap)
+library(vioplot)
+```
+
 ## Introduction/Biological Relevance
 
 Long non-coding RNA (lncRNA) is a form of RNA that is longer than 200 nucleotides and does not encode a protein. For decades, these were considered to be "junk" RNAs as their functions were not yet known, but through extensive experimentation it has become clear that lncRNAs frequently associate with proteins to perform a variety of functions, such as epigenetics, chromatin regulation, and altering transcription and translation. One common example is the lncRNA XIST, known for repressing the additional X chromosome in female placental mammals during early development. However, protein coding RNAs also interact with proteins, so this phenomenon alone does not explain what gives lncRNAs their functions, Rather, a combination of *which* proteins bind the RNA and *where* they bind the RNA may be more informative in determining which lncRNAs have similar functions.
 
 One way to measure this is through an assay known as eCLIP (enhanced CrossLinking ImmunoPrecipitation). A protein of interest is added to a cell where it binds to RNAs with relevant sequence or structural motifs. An antibody that is specific to the protein is used to extract the protein, bringing with it the bound RNAs. These RNAs are then fragmented and the portions that were bound to the protein are sequenced, resulting in an understanding of both which RNAs bind the protein and what portion of each RNAs *sequence* is relevant to binding the protein.
 
-This assay is performed one protein at a time, yet Gene Yeo's lab has uploaded 135 K562 assays and 103 HEPG2 assays to the ENCODE database. [Describe wetlab eCLIP methods, data curation] Here we use this data to construct a **protein binding profile** for each RNA transcript in the cell in order to determine which proteins bind or do not bind to each transcript.
+This assay is performed one protein at a time, yet Gene Yeo's lab has uploaded 135 K562 assays and 103 HEPG2 assays to the ENCODE database. 
+[Describe wetlab eCLIP methods, data curation] 
+Here we use this data to construct a **protein binding profile** for each RNA transcript in the cell in order to determine which proteins bind or do not bind to each transcript.
 
 In this report, we determine differences between the protein association to RNA transcripts in K562 and HEPG2 cells and investigate whether RNA function can be predicted from which proteins it binds. [Quick note: I liked that you mentioned how K562 cells have two X chromosomes and HEPG2 cells have one. So we expect to see a difference for Xist in both. You laid this out more eloquently in your presentation and I thought it would be helpful to mention it in here too :)]
 
@@ -32,38 +51,90 @@ The file `bam_file_mappings.tsv` was generated from the python script `map_bam_r
 
 The SummarizedExperiment was developed by the code in `loading_K562_se_object.Rmd` and the .Rda object is generated and stored in the derived_data/ directory of the repository upon a `make` build. The individual matrices of the asssay(), colData(), and rowData() are also included in the files K562_assay.tsv, K562_colData.tsv, and K562_rowData.tsv.
 
-The initial matrices were stored in `se_K562.rda` and `se_HEPG2.rda`.
+```{r}
+#Read in count matrix and column data
+K562_counts <- read.csv("developing_se/K562_se/main_featcount_K562.tsv", sep="\t")
+K562_column_data <- read.csv("developing_se/K562_se/column_data_K562.tsv", sep="\t")
 
-```{r warning=F}
-load("developing_se/K562_se/se_K562.rda")
-se
+#Order the column data to match the order of the count matrix
+K562_column_data <- K562_column_data[ order(match(K562_column_data$Experiment.accession, colnames(K562_counts))), ]
+rownames(K562_column_data) <- NULL
+
+#Repeat for the row data
+K562_row_data <- read.csv("developing_se/rowdata.tsv", sep="\t")
+
+K562_column_data <- column_to_rownames(K562_column_data, "Experiment.accession")
+K562_counts <- column_to_rownames(K562_counts, "Gene.id")
+K562_row_data <- column_to_rownames(K562_row_data, "Gene_id")
+K562.se <- SummarizedExperiment(assays = list(counts = data.matrix(K562_counts)), colData = K562_column_data, rowData=K562_row_data)
 ```
 
-The assay of the SE provides the counts for each experiment, with each row consisting of a specific RNA
+Once the initial SummarizedExperiment was constructed, it was necessary to perform basic filtering to remove any genes that are not expressed in any of the eCLIP experiments for the cell type, and the initial K562.se object was updated as well to represent this. Given the goals of this exploration, only genes labeled as "lncRNA" or as "protein_coding" were retained in the dataset. This selection was stored as `se2_K562.rda`.
+```{r}
+#Filtering number of counts for each row to remove unexpressed genes
+rowTotal = 0
+K562_keep <- rowSums(assay(K562.se)) > 0
+K562.se <- K562.se[K562_keep,]
 
-### Filtering the SummarizedExperiments
+save(K562.se, file = "derived_data/se_K562.rda")
+
+#Filtering gene types to select for protein coding and lncRNA
+K562_gene_type <- as.data.frame(K562.se@elementMetadata@listData$Gene_type)
+colnames(K562_gene_type) <- c("GENETYPE")
+K562_gene_type <- as.data.frame(count(K562_gene_type, GENETYPE))
+K562_gene_type <- K562_gene_type[order(-K562_gene_type$n),]
+
+K562_wantedGenes <- c('protein_coding',"lncRNA")
+K562_keep2 <- K562.se@elementMetadata@listData$Gene_type ==  K562_wantedGenes 
+K562.se2 <- K562.se[K562_keep2,]
+save(K562.se2, file = "derived_data/se2_K562.rda")
+```
+
+This process is repeated for the HEPG2 cell data. The same filtration steps taken in the K562 SummarizedExperiment development methods were repeated here and saved in `se2_HEPG2.rda`. The original SE object is also updated to reflect only those genes that indicate some non-zero level of expression.
+```{r warning=FALSE}
+#Read in count matrix and column data
+HEPG2_counts <- read.csv("developing_se/HEPG2_se/HEPG2_count_file.tsv", sep="\t")
+HEPG2_column_data <- read.csv("developing_se/HEPG2_se/column_data_HEPG2.tsv", sep="\t")
+
+#Order the column data to match the order of the count matrix
+HEPG2_column_data <- HEPG2_column_data[ order(match(HEPG2_column_data$Experiment.accession, colnames(HEPG2_counts))), ]
+rownames(HEPG2_column_data) <- NULL
+
+#Repeat for the row data
+HEPG2_row_data <- read.csv("developing_se/rowdata.tsv", sep="\t")
+
+HEPG2_column_data <- column_to_rownames(HEPG2_column_data, "Experiment.accession")
+HEPG2_counts <- column_to_rownames(HEPG2_counts, "Gene.id")
+HEPG2_row_data <- column_to_rownames(HEPG2_row_data, "Gene_id")
+HEPG2.se <- SummarizedExperiment(assays = list(counts = data.matrix(HEPG2_counts)), colData = HEPG2_column_data, rowData=HEPG2_row_data)
+
+#Filtering number of counts for each row to remove unexpressed genes
+rowTotal = 0
+HEPG2_keep <- rowSums(assay(HEPG2.se)) > 0
+HEPG2.se <- HEPG2.se[HEPG2_keep,]
+
+save(HEPG2.se, file = "derived_data/se_HEPG2.rda")
+
+#Filtering gene types to select for protein coding and lncRNA
+HEPG2_gene_type <- as.data.frame(HEPG2.se@elementMetadata@listData$Gene_type)
+colnames(HEPG2_gene_type) <- c("GENETYPE")
+HEPG2_gene_type <- as.data.frame(count(HEPG2_gene_type, GENETYPE))
+HEPG2_gene_type <- HEPG2_gene_type[order(-HEPG2_gene_type$n),]
+
+HEPG2_wantedGenes <- c('protein_coding',"lncRNA")
+HEPG2_keep2 <- HEPG2.se@elementMetadata@listData$Gene_type ==  HEPG2_wantedGenes 
+HEPG2.se2 <- HEPG2.se[HEPG2_keep2,]
+save(HEPG2.se2, file = "derived_data/se2_HEPG2.rda")
+```
+
+### Further Filtering the SummarizedExperiments
 
 Given that sequence fragments may map to more than one region of the genome, it is always possible that reads may be misaligned and in the context of eCLIP data this would indicate a false RNA-protein binding interaction. To help filter these out, transcripts without any aligned counts were removed and only genes classified as `protein_coding` and `lncRNA` were retained in `se2_K562.rda` and `se2_HEPG2.rda`.
 
+\<Chenghao: Include your analysis methods here :) \>
+
 ### Clustering Analysis - K562 Cells
 
-```{r echo=FALSE}
-library(SummarizedExperiment, quietly=T)
-library(dplyr)
-library(readr)
-library(tibble)
-library(org.Hs.eg.db)
-library(AnnotationHub)
-library(GO.db)
-library(MASS)
-library(ggplot2)
-library(viridis)
-library(clusterProfiler)
-library(pheatmap)
-library(vioplot)
-```
-
-\<Chenghao: Include your analysis methods here :) \>
 
 ## Data Analysis
 
