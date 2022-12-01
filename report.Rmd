@@ -140,7 +140,6 @@ Given that sequence fragments may map to more than one region of the genome, it 
 
 ### Heat Map Analysis
 
-\<Kwame: Methods here\>
 ```{r echo=FALSE}
 se_pheatmap <- as.data.frame(assay(se))
 gene_type <- as.data.frame(se@elementMetadata@listData$Gene_type)
@@ -564,6 +563,8 @@ We identified other pairs of lncRNAs and attempted to see if they were involved 
 ## Conclusions
 
 <Major take away conclusions>
+
+Further analysis into other cell types, particularly another female of a similar age to the K562 donor, would be helpful to determining the level of conservation in RBP expression across cell types. Controlling for age and being able to reference sex-specific RNAs including XIST would expand ability for cross-comparison of functionally documented RNAs. The exact details of binding profiles can be extremely beneficial in determining how RNAs function, however, a variety of features such as binding target and RNA length seem to influence the profiles, not just the type of function being performed.  
 
 ## References
 
