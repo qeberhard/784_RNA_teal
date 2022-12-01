@@ -1,6 +1,6 @@
 mapping = {}
 
-with open("metadata.tsv", "r") as metadata:
+with open("HEPG2_metadata.tsv", "r") as metadata:
     for line in metadata:
         if line[0] == "E":
             components = line.split("\t")
