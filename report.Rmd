@@ -39,17 +39,26 @@ Here we use this data to construct a **protein binding profile** for each RNA tr
 
 Here we analyzed the RNA-protein binding preferences of two human cell lines: K562 and HEPG2 cells. K562 cells are from a 52 year old female with erythroleukemia cancer, and HEPG2 cells are hepatocellular carcinoma cells from a 15 year old male. Both have been thoroughly studied for biological analyses but here we wanted to identify similarities and differences between them in the context of eCLIP assays.
 
-ENCODE provides these datasets for easy processed-file downloads, so we downloaded the bam files for all experiments for each cell type.
+ENCODE provides these datasets for easy pre-processed file downloads, so we downloaded the bam files for all experiments for each cell type:
 
 ```{bash}
+#mkdir downloaded_files
+#cd downloaded_files
+#cp ../download_K562_files.txt .
 #xargs -L 1 curl -O -J -L < download_K562_files.txt
+#cp metadata.tsv metadata_K562.tsv
+#rm metadata.tsv
 ```
 
-These bam files were not included in this repository. However, the downloaded `metadata_K562.tsv` file is included in the `developing_se/` directory which includes information on all of the downloaded files for each experiment. which was later used to develop the colData() of the SummarizedExperiments.
+The pre-processed bam files were developed using the Yeo lab's 'eCLIP-seq Processing Pipeline', which prepares sequence data for ready analysis (Yeo, 2020). Fastq formatted sequencing data is processed for paired-end reads if relevant, removing UMIs and barcodes. Adapters are trimmed, repeat elements are mapped and filtered, and then reads are mapped to the genome using the STAR aligner. PCR duplicates are then extracted, custom inline barcodes and filters are merged, and peak regions are then called. Lastly, data is normalized to the size-matched sample performed as part of the experiment as mentioned earlier, and fold change enrichment in the peaks is called. The custom scripts are all available through the Yeo lab Github eCLIP page. The bam files developed in this process are used for our analysis here.
 
-The file `bam_file_mappings.tsv` was generated from the python script `map_bam_replicates.py`. There were two replicates for each experiment, so we merged the bam files using `samtools merge` for each replicate, then ran featureCounts to determine the RBP counts (script in `serial_bam_merge.sh`). featureCounts is a tool in the Subreads package developed by Yang Liao and Wei Shi that identifies the genomic features of sequence reads through ---. This allowed us to determine for each experiment how many reads mapped to each transcript. This would ultimately develop one column of the SummarizedExperiment. The `gencode.v39.basic.annotation.gtf` genome was downloaded from GENCODE for GRCh38.p13 and was used for featureCount runs. This gtf file then also informed the development of the rowData() of the summarized experiments.
+No bam files were included in this repository, however, the downloaded `metadata_K562.tsv` file is included in the `developing_se/` directory which includes information on all of the downloaded files for each experiment. which was later used to develop the colData() of the SummarizedExperiments. The `develop_K562_column_data.py` and `develop_HEPG2_column_data.py` files show how the column data was obtained for each experiment out of the `K562_metadata.tsv` and `HEPG2_metadata.tsv` files, resulting in `column_data_K562.tsv` and `column_data_HEPG2.tsv` which are loaded into SummarizedExperiment colData() below.
 
-The SummarizedExperiment was developed by the code in `loading_K562_se_object.Rmd` and the .Rda object is generated and stored in the derived_data/ directory of the repository upon a `make` build. The individual matrices of the asssay(), colData(), and rowData() are also included in the files K562_assay.tsv, K562_colData.tsv, and K562_rowData.tsv.
+The file `bam_file_mappings.tsv` was generated from the python script `map_bam_replicates.py`. There were two replicates for each experiment, so we merged the bam files using `samtools merge` for each replicate, then ran featureCounts to determine the RBP counts (script in `serial_bam_merge.sh`). featureCounts is a tool in the Subreads package developed by Yang Liao and Wei Shi that quantifies the instances of genomic features in sequence reads. This allowed us to determine for each experiment how many reads mapped to each transcript (`developing_se/feature_counts.sh`). This would ultimately develop one column of the SummarizedExperiment. The `gencode.v39.basic.annotation.gtf` genome was downloaded from GENCODE for GRCh38.p13 and was used for featureCount annotation. This gtf file then also informed the development of the rowData() of the SummarizedExperiments.
+
+In the K562 development, several of the eCLIP experiments were done as single end reads rather than paired ends. Those were identified from errors in the initial `feature_counts.sh` attempt and were manually corrected for in the `developing_se/single_end_feature_counts.sh` file, where the rest were processed. All featureCounts results were compiled in the `developing_se/make_count_matrix.py` script. This step was not necessary for the HEPG2 cell experiments.
+
+The SummarizedExperiment was developed by the code in `loading_K562_se_object.Rmd` and the .Rda object is generated and stored in the derived_data/ directory of the repository. This code is also located below. The individual matrices of the asssay(), colData(), and rowData() are also included in the files K562_assay.tsv, K562_colData.tsv, and K562_rowData.tsv.
 
 ```{r}
 #Read in count matrix and column data
@@ -133,8 +142,6 @@ Given that sequence fragments may map to more than one region of the genome, it 
 
 \<Chenghao: Include your analysis methods here :) \>
 
-### Clustering Analysis - K562 Cells
-
 
 ## Data Analysis
 
@@ -158,6 +165,8 @@ pheatmap(se_pheatmap[1:135], cluster_rows=F, show_rownames=F,
          color =colorRampPalette(c('red','white','blue'))(100), scale = "row",fontsize = 4, cellwidth =5)
 ```
 Looking at the pheatmap, we see many events/genes that show little to no expression and many different types of genes. This will be later filtered out.
+
+### Clustering Analysis - K562 cells
 
 For the clustering analysis, we use a filtered SummarizedExperiment. It contains data for mRNAs and lncRNAs that bind to at least one protein in the eCLIP experiments. We narrow our focus to these two types of RNAs. The reasons are that they are very well represented in the dataset, and that unlike mRNAs, the functions of almost all lncRNAs remain a mystery. If we see that similar mRNAs are bound by similar proteins, then perhaps this might also hold true for lncRNAs.
 
@@ -563,8 +572,10 @@ A comparison of the exact RBP profiles for XIST and XACT can be found here:
 XIST.data <- K562_counts["ENSG00000229807.13",]
 XACT.data <- K562_counts["ENSG00000241743.4",]
 combined.df <- as.data.frame(matrix(c(XIST.data, XACT.data), ncol=135, nrow=2))
+
 colnames(combined.df) <- colnames(K562_counts)
 rownames(combined.df) <- c("XIST", "XACT")
+
 plotting.combined.df <- as.data.frame(t(combined.df))
 plotting.combined.df$Gene <- colnames(K562_counts)
 plotting.combined.df <- tidyr::pivot_longer(plotting.combined.df, cols=c('XIST', 'XACT'), names_to='RNA', values_to='count')
@@ -597,6 +608,8 @@ Further analysis into other cell types, particularly another female of a similar
 Nostrand, E.L. et al. (2016). Robust transcriptome-wide discovery of RNA-binding protein binding sites with enhanced CLIP (eCLIP). Nature Methods, 13(6), 508-514. <https://doi:10.1038/nmeth.3810>
 
 Nostrand, E.L. Yeo, G. (2015). eCLIP Standard Operating Procedure v1.P 20151108. ENCODE, ENCSR489RJI: Documents. <https://www.encodeproject.org/experiments/ENCSR489RJI/> 
+
+Yeo, G. (2020) eCLIP-seq Processing Pipeline v2.0. ENCODE, ENCSR268ETU: Documents. <https://www.encodeproject.org/experiments/ENCSR268ETU/>
 
 Cooke, A., Schwarzl, T., Huppertz, I., Kramer, G., Mantas, P., Alleaume, A. M., Huber, W., Krijgsveld, J., & Hentze, M. W. (2019). The RNA-Binding Protein YBX3 Controls Amino Acid Levels by Regulating SLC mRNA Abundance. Cell reports, 27(11), 3097--3106.e5. <https://doi.org/10.1016/j.celrep.2019.05.039>
 
