@@ -6,6 +6,4 @@ Most details are contained in the report.Rmd file.
 
 In order to construct this report, please: 
 1. Clone this repository
-2. Make sure you have `make` installed (Usually pre-installed in Linux and Mac)
-3. Run `make report.pdf`
-4. If you wish to regenerate, you may run `make clean` and restart the process.
+2. Run `Rscript report.Rmd`
