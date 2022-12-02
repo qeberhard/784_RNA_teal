@@ -601,7 +601,75 @@ We identified other pairs of lncRNAs and attempted to see if they were involved 
 
 <Major take away conclusions>
 
-Further analysis into other cell types, particularly another female of a similar age to the K562 donor, would be helpful to determining the level of conservation in RBP expression across cell types. Controlling for age and being ab  le to reference sex-specific RNAs including XIST would expand ability for cross-comparison of functionally documented RNAs. The exact details of binding profiles can be extremely beneficial in determining how RNAs function, however, a variety of features such as binding target and RNA length seem to influence the RBP profiles, not just the type of function.  
+Further analysis into other cell types, particularly another female of a similar age to the K562 donor, would be helpful to determining the level of conservation in RBP expression across cell types. Controlling for age and being able to reference sex-specific RNAs including XIST would expand ability for cross-comparison of functionally documented RNAs. The exact details of binding profiles can be extremely beneficial in determining how RNAs function, however, a variety of features such as binding target and RNA length seem to influence the RBP profiles, not just the type of function. 
+
+Another exciting route we can take is examing how the two cell types compare against each other across RBPs they share. Here we found 75 RBPs used in both cells!
+```{r}
+#K562 Cell Line
+se_assay <- as.data.frame(assay(K562.se))
+#Getting gene name
+se_assay$ensem = gsub("\\..*","",row.names(se_assay))
+se_assay$symbol = mapIds(org.Hs.eg.db,
+                           keys = se_assay$ensem,
+                           column = "SYMBOL",
+                           keytype="ENSEMBL",
+                           multiVals = "first")
+
+se_assay <- subset(se_assay, select = c(136:137,1:135))
+#Getting genetype
+GeneType <- data.frame(GeneType = K562.se@elementMetadata@listData$Gene_type)
+
+se_assay = cbind(se_assay,GeneType)
+
+k562 <- (se_assay)
+#changing colnames to the experiment target
+targets2 <- as.data.frame(K562.se$Experiment.target)
+colnames(k562)[3:137] <- targets2$`K562.se$Experiment.target`
+#labeling cell line
+CellLine = as.data.frame(rep("k562",dim(k562)[1]))
+names(CellLine)[names(CellLine) == 'rep("k562", dim(k562)[1])'] <- "CellLine"
+k562 = cbind(k562,CellLine)
+
+
+
+
+
+#HEPG2 Cell Lines
+se2_Hep_assay <- as.data.frame(assay(HEPG2.se))
+#Getting gene name
+se2_Hep_assay$ensem = gsub("\\..*","",row.names(se2_Hep_assay))
+se2_Hep_assay$symbol = mapIds(org.Hs.eg.db,
+                         keys = se2_Hep_assay$ensem,
+                         column = "SYMBOL",
+                         keytype="ENSEMBL",
+                         multiVals = "first")
+se2_Hep_assay <- subset(se2_Hep_assay, select = c(104:105,1:103))
+#Getting genetype
+GeneType <- data.frame(GeneType = HEPG2.se@elementMetadata@listData$Gene_type)
+
+se2_Hep_assay = cbind(se2_Hep_assay,GeneType)
+
+hepg2 <- (se2_Hep_assay)
+#changing colnames to the experiment target
+targets <- as.data.frame(HEPG2.se$Experiment.target)
+colnames(hepg2)[3:105] <- targets$`HEPG2.se$Experiment.target`
+#labeling cell line
+CellLine = as.data.frame(rep("hepg2",dim(hepg2)[1]))
+names(CellLine)[names(CellLine) == 'rep("hepg2", dim(hepg2)[1])'] <- "CellLine"
+hepg2 = cbind(hepg2,CellLine)
+
+#Seeing where they intersect
+bL <- as.data.frame(intersect(names(k562), names(hepg2)))
+bL <- as.character(intersect(names(k562), names(hepg2)))
+
+#Extracting common colnames from both lines
+hepg2 <- hepg2 %>% dplyr::select(bL)
+
+k562 <- k562 %>% dplyr::select(bL)
+
+#combining both lines
+bothLines <- rbind(k562,hepg2)
+```
 
 ## References
 
