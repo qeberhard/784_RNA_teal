@@ -19,6 +19,7 @@ library(viridis)
 library(clusterProfiler)
 library(pheatmap)
 library(vioplot)
+library(glmmTMB)
 ```
 
 ## Introduction/Biological Relevance
@@ -85,7 +86,7 @@ rowTotal = 0
 K562_keep <- rowSums(assay(K562.se)) > 0
 K562.se <- K562.se[K562_keep,]
 
-save(K562.se, file = ""developing_se/K562_se/se_K562.rda")
+save(K562.se, file = "derived_data/se_K562.rda")
 
 #Filtering gene types to select for protein coding and lncRNA
 K562_gene_type <- as.data.frame(K562.se@elementMetadata@listData$Gene_type)
@@ -96,7 +97,7 @@ K562_gene_type <- K562_gene_type[order(-K562_gene_type$n),]
 K562_wantedGenes <- c('protein_coding',"lncRNA")
 K562_keep2 <- K562.se@elementMetadata@listData$Gene_type ==  K562_wantedGenes 
 K562.se2 <- K562.se[K562_keep2,]
-save(K562.se2, file = ""developing_se/K562_se/se2_K562.rda")
+save(K562.se2, file = "derived_data/se2_K562.rda")
 ```
 
 This process is repeated for the HEPG2 cell data, initially in `developing_se/HEPG2_se/loading_HEPG2_se_object.Rmd`. The same filtration steps taken in the K562 SummarizedExperiment development methods were repeated here and saved in `se2_HEPG2.rda`. The original SE object is also updated to reflect only those genes that indicate some non-zero level of expression.
@@ -122,7 +123,7 @@ rowTotal = 0
 HEPG2_keep <- rowSums(assay(HEPG2.se)) > 0
 HEPG2.se <- HEPG2.se[HEPG2_keep,]
 
-save(HEPG2.se, file = ""developing_se/HEPG2_se/se_HEPG2.rda")
+save(HEPG2.se, file = "derived_data/se_HEPG2.rda")
 
 #Filtering gene types to select for protein coding and lncRNA
 HEPG2_gene_type <- as.data.frame(HEPG2.se@elementMetadata@listData$Gene_type)
@@ -133,34 +134,528 @@ HEPG2_gene_type <- HEPG2_gene_type[order(-HEPG2_gene_type$n),]
 HEPG2_wantedGenes <- c('protein_coding',"lncRNA")
 HEPG2_keep2 <- HEPG2.se@elementMetadata@listData$Gene_type ==  HEPG2_wantedGenes 
 HEPG2.se2 <- HEPG2.se[HEPG2_keep2,]
-save(HEPG2.se2, file = ""developing_se/HEPG2_se/se2_HEPG2.rda")
+save(HEPG2.se2, file = "derived_data/se2_HEPG2.rda")
 ```
 
 ### Further Filtering the SummarizedExperiments
 
 Given that sequence fragments may map to more than one region of the genome, it is always possible that reads may be misaligned and in the context of eCLIP data this would indicate a false RNA-protein binding interaction. To help filter these out, transcripts without any aligned counts were removed and only genes classified as `protein_coding` and `lncRNA` were retained in `se2_K562.rda` and `se2_HEPG2.rda`.
 
-\<Chenghao: Include your analysis methods here :) \>
+We start from `se_K562.rda` and `se_HEPG2.rda`, where no genes were filtered.
 
+```{r}
+#Load the `se` object for K562
+load("developing_se/K562_se/se_K562.rda")
+#Labels for non-coding RNA
+nc_labels <- c("lncRNA")
+#Labels for coding RNA
+c_labels <- c("protein_coding")
+
+se.nc <- se[rowData(se)$Gene_type %in% nc_labels, ]
+
+se.c <- se[rowData(se)$Gene_type %in% c_labels, ]
+```
+
+```{r}
+#K562
+#Log total RNA counts for each gene
+logrowsums <- log1p(rowSums(assay(se)))
+
+ggplot(data = data.frame( x = logrowsums ), aes(x = x)) +
+  geom_histogram(binwidth = 0.1, fill = "green4") +
+  labs(x = "log(total RNA count + 1)", y = "") +
+  scale_x_continuous(n.breaks = 20) +
+  theme_bw() +
+  theme(text=element_text(size=50), axis.text.x = element_text(angle = 90))
+```
+
+```{r}
+#K562
+#Log total RNA counts for non-coding and coding genes 
+logrowsums.nc <- log1p(rowSums(assay(se.nc)))
+logrowsums.c <- log1p(rowSums(assay(se.c)))
+
+ggplot(data = data.frame( x = c(logrowsums.nc, logrowsums.c), 
+                          label = c( rep("non-coding", length(logrowsums.nc)), rep("coding", length(logrowsums.c)) ) ),
+       aes(x = x, fill = label)) +
+  geom_histogram(binwidth = 0.1, color="purple", alpha=0.6, position = 'identity') +
+  scale_fill_manual(values=c("red", "turquoise")) +
+  labs(x = "log(total RNA count + 1)", fill="", y = "") +
+  scale_x_continuous(n.breaks = 20) +
+  theme_bw() +
+  theme(text=element_text(size=50), axis.text.x = element_text(angle = 90))
+```
+
+
+```{r}
+#K562
+#Log total RNA counts for each protein
+logcolsums <- log1p(colSums(assay(se)))
+
+ggplot(data = data.frame( x = logcolsums ), aes(x = x)) +
+  geom_histogram(binwidth = 0.1, fill = "blue3") +
+  labs(x = "log(total RNA count + 1)  (for each protein)", y = "") +
+  scale_x_continuous(n.breaks = 10) +
+  theme_bw() +
+  theme(text=element_text(size=50), axis.text.x = element_text(angle = 90))
+```
+
+```{r}
+#K562
+#Number of proteins binding to each gene
+proteinCount <- rowSums(assay(se)!=0)
+
+ggplot(data = data.frame( x = proteinCount ), aes(x = x)) +
+  geom_histogram(binwidth = 1, fill = "red4") +
+  labs(x = "no. of binding proteins", y = "") +
+  scale_x_continuous(n.breaks = 10) +
+  theme_bw() +
+  theme(text=element_text(size=50), axis.text.x = element_text(angle = 90))
+```
+
+```{r}
+#K562
+#Relationship between log total RNA counts and number of binding proteins
+ggplot(data = data.frame(x = logrowsums, y = proteinCount), aes(x = x, y = y)) +
+  geom_jitter(shape = 1, color = "navy", alpha = 0.1) +
+  annotate("text", x=13, y=100, label = paste0("corr = ",round(cor(logrowsums, proteinCount), digits = 3)), size = 20) +
+  theme_bw() +
+  theme(text=element_text(size=50)) +
+  labs(x = "log(total RNA count + 1)", y = "no. of binding proteins") 
+```
+
+We find that distribution of log total RNA counts for each gene has a long right tail. We also find that coding-genes have larger counts of RNA comparing to non-coding genes. The distribution of log total RNA counts for each protein is barely symmetric, and each protein binds a large quantity of RNA. The number of binding proteins looks bimodal, indicating that most RNA either specifically binds to a few kinds of proteins, or binds to a large spectrum of proteins. Besides, the number of log total RNA counts and the number of binding proteins for each gene are highly correlated. Thus we can simply determine a cutoff for gene filtering based on the distribution of RNA counts.
+
+```{r}
+#K562
+cutoff = 2.5
+
+ggplot(data = data.frame( x = logrowsums ), aes(x = x)) +
+  geom_histogram(binwidth = 0.1, fill = "green4") +
+  labs(x = "log(total RNA count + 1)") +
+  scale_x_continuous(n.breaks = 20) +
+  geom_vline(xintercept = cutoff, color = "chocolate", linetype = "longdash") +
+  theme_bw() +
+  theme(text=element_text(size=50), axis.text.x = element_text(angle = 90))
+
+```
+
+The cutoff is chosen as 11, or 2.5 in log scale. That is to say, we filter out genes with total RNA counts <= 11.
+
+```{r}
+#Load the `se` object for HEPG2
+load("developing_se/HEPG2_se/se_HEPG2.rda")
+#Labels for non-coding RNA
+nc_labels <- c("lncRNA")
+#Labels for coding RNA
+c_labels <- c("protein_coding")
+
+se.nc <- se[rowData(se)$Gene_type %in% nc_labels, ]
+
+se.c <- se[rowData(se)$Gene_type %in% c_labels, ]
+```
+
+```{r}
+#HEPG2
+#Log total RNA counts for each gene
+logrowsums <- log1p(rowSums(assay(se)))
+
+ggplot(data = data.frame( x = logrowsums ), aes(x = x)) +
+  geom_histogram(binwidth = 0.1, fill = "green4") +
+  labs(x = "log(total RNA count + 1)", y = "") +
+  scale_x_continuous(n.breaks = 20) +
+  theme_bw() +
+  theme(text=element_text(size=50), axis.text.x = element_text(angle = 90))
+```
+
+```{r}
+#HEPG2
+#Log total RNA counts for non-coding and coding genes 
+logrowsums.nc <- log1p(rowSums(assay(se.nc)))
+logrowsums.c <- log1p(rowSums(assay(se.c)))
+
+ggplot(data = data.frame( x = c(logrowsums.nc, logrowsums.c), 
+                          label = c( rep("non-coding", length(logrowsums.nc)), rep("coding", length(logrowsums.c)) ) ),
+       aes(x = x, fill = label)) +
+  geom_histogram(binwidth = 0.1, color="purple", alpha=0.6, position = 'identity') +
+  scale_fill_manual(values=c("red", "turquoise")) +
+  labs(x = "log(total RNA count + 1)", fill="", y = "") +
+  scale_x_continuous(n.breaks = 20) +
+  theme_bw() +
+  theme(text=element_text(size=50), axis.text.x = element_text(angle = 90))
+```
+
+
+```{r}
+#HEPG2
+#Log total RNA counts for each protein
+logcolsums <- log1p(colSums(assay(se)))
+
+ggplot(data = data.frame( x = logcolsums ), aes(x = x)) +
+  geom_histogram(binwidth = 0.1, fill = "blue3") +
+  labs(x = "log(total RNA count + 1)  (for each protein)", y = "") +
+  scale_x_continuous(n.breaks = 10) +
+  theme_bw() +
+  theme(text=element_text(size=50), axis.text.x = element_text(angle = 90))
+```
+
+```{r}
+#HEPG2
+#Number of proteins binding to each gene
+proteinCount <- rowSums(assay(se)!=0)
+
+ggplot(data = data.frame( x = proteinCount ), aes(x = x)) +
+  geom_histogram(binwidth = 1, fill = "red4") +
+  labs(x = "no. of binding proteins", y = "") +
+  scale_x_continuous(n.breaks = 10) +
+  theme_bw() +
+  theme(text=element_text(size=50), axis.text.x = element_text(angle = 90))
+```
+
+```{r}
+#HEPG2
+#Relationship between log total RNA counts and number of binding proteins
+ggplot(data = data.frame(x = logrowsums, y = proteinCount), aes(x = x, y = y)) +
+  geom_jitter(shape = 1, color = "navy", alpha = 0.1) +
+  annotate("text", x=13, y=100, label = paste0("corr = ",round(cor(logrowsums, proteinCount), digits = 3)), size = 20) +
+  theme_bw() +
+  theme(text=element_text(size=50)) +
+  labs(x = "log(total RNA count + 1)", y = "no. of binding proteins") 
+```
+
+The patterns of HEPG2 data look similar to the ones we found in K562 data.
+
+```{r}
+#HEPG2
+cutoff = 2.5
+
+ggplot(data = data.frame( x = logrowsums ), aes(x = x)) +
+  geom_histogram(binwidth = 0.1, fill = "green4") +
+  labs(x = "log(total RNA count + 1)") +
+  scale_x_continuous(n.breaks = 20) +
+  geom_vline(xintercept = cutoff, color = "chocolate", linetype = "longdash") +
+  theme_bw() +
+  theme(text=element_text(size=50), axis.text.x = element_text(angle = 90))
+
+```
+
+The cutoff chosen is the same as the one for K562 data. We filter out genes with total RNA counts <= 11 for HEPG2 data.
+
+### Compare non-coding vs. coding genes on protein binding
+
+We use Wilcoxon rank sum test and zero-inflated negative binomial regression (ZINB, along with likelihood ratio test) to compare non-coding to coding genes on protein binding. The RNA counts for non-coding genes and coding genes are compared for each gene individually, where the coding genes serve as the reference.
+
+We start from filtered datasets.
+
+```{r}
+#K562
+load("developing_se/K562_se/se_K562.rda")
+
+rowTotal = 11
+keep <- rowSums(assay(se)) > rowTotal
+se <- se[keep,]
+
+se.nc <- se[rowData(se)$Gene_type %in% nc_labels, ]
+
+se.c <- se[rowData(se)$Gene_type %in% c_labels, ]
+
+mtx.nc <- assay(se.nc)
+
+mtx.c <- assay(se.c)
+```
+
+
+```{r}
+#K562
+#Wilcoxon
+data.result.wilcox <- data.frame(protein = colnames(se), p.val = NA, log2fc = NA)
+
+for (i in 1:ncol(se)) {
+  test <- wilcox.test(mtx.nc[,i], mtx.c[,i], alternative = "two.sided")
+  
+  data.result.wilcox$p.val[i] <- test$p.value
+  
+  fc <- mean(mtx.nc[,i])/mean(mtx.c[,i])
+  
+  data.result.wilcox$log2fc[i] <- log2(fc)
+  
+}
+
+data.result.wilcox <- data.result.wilcox %>% mutate(p.val.adj = p.adjust(p.val, method = "BH"))
+data.result.wilcox
+```
+
+```{r}
+#K562
+#ZINB
+# data.result.zinb <- data.frame(protein = colnames(se), p.val = NA, log2fc = NA)
+# 
+# for (i in 1:ncol(se)) {
+#   
+#   dat <- data.frame( count = c(mtx.nc[,i], mtx.c[,i]),
+#               label = c( rep(1, nrow(mtx.nc)), rep(0, nrow(mtx.c)) ) )
+#   
+#   m1 <- glmmTMB(count ~ label, data = dat, ziformula = ~., family = nbinom2(link = "log"))
+#   
+#   # null model
+#   
+#   m0 <- update(m1, . ~ 1)
+#   
+#   pval = pchisq(2 * (logLik(m1) - logLik(m0)), df = 2, lower.tail=FALSE)
+#   pval = as.numeric(pval)
+#   
+#   data.result.zinb$p.val <- pval
+# 
+#   fc <- mean(mtx.nc[,i])/mean(mtx.c[,i])
+#   
+#   data.result.zinb$log2fc[i] <- log2(fc)
+#   
+#   print(i)
+# }
+# 
+# data.result.zinb
+
+#The resutls are saved in K562_zinb.csv
+```
+
+```{r}
+#HEPG2
+load("developing_se/HEPG2_se/se_HEPG2.rda")
+
+rowTotal = 11
+keep <- rowSums(assay(se)) > rowTotal
+se <- se[keep,]
+
+se.nc <- se[rowData(se)$Gene_type %in% nc_labels, ]
+
+se.c <- se[rowData(se)$Gene_type %in% c_labels, ]
+
+mtx.nc <- assay(se.nc)
+
+mtx.c <- assay(se.c)
+```
+
+```{r}
+#HEPG2
+#Wilcoxon
+data.result.wilcox <- data.frame(protein = colnames(se), p.val = NA, log2fc = NA)
+
+for (i in 1:ncol(se)) {
+  test <- wilcox.test(mtx.nc[,i], mtx.c[,i], alternative = "two.sided")
+  
+  data.result.wilcox$p.val[i] <- test$p.value
+  
+  fc <- mean(mtx.nc[,i])/mean(mtx.c[,i])
+  
+  data.result.wilcox$log2fc[i] <- log2(fc)
+  
+}
+
+data.result.wilcox <- data.result.wilcox %>% mutate(p.val.adj = p.adjust(p.val, method = "BH"))
+data.result.wilcox
+```
+
+```{r}
+#HEPG2
+#ZINB
+# data.result.zinb <- data.frame(protein = colnames(se), p.val = NA, log2fc = NA)
+# 
+# for (i in 1:ncol(se)) {
+#   
+#   dat <- data.frame( count = c(mtx.nc[,i], mtx.c[,i]),
+#               label = c( rep(1, nrow(mtx.nc)), rep(0, nrow(mtx.c)) ) )
+#   
+#   m1 <- glmmTMB(count ~ label, data = dat, ziformula = ~., family = nbinom2(link = "log"))
+#   
+#   # null model
+#   
+#   m0 <- update(m1, . ~ 1)
+#   
+#   pval = pchisq(2 * (logLik(m1) - logLik(m0)), df = 2, lower.tail=FALSE)
+#   pval = as.numeric(pval)
+#   
+#   data.result.zinb$p.val <- pval
+# 
+#   fc <- mean(mtx.nc[,i])/mean(mtx.c[,i])
+#   
+#   data.result.zinb$log2fc[i] <- log2(fc)
+#   
+#   print(i)
+# }
+# 
+# data.result.zinb
+
+#The resutls are saved in HEPG2_zinb.csv
+```
+
+All p-values are very close to 0. This suggests a huge discrepancy between non-coding and coding genes on protein binding.
+
+Since the p-values are all around 0, we turn to focus on log2 fold changes.
+
+```{r}
+#Results from ZINB model
+data.k562 <- read.csv("developing_se/K562_se/K562_zinb.csv", stringsAsFactors = FALSE)
+data.hepg2 <- read.csv("developing_se/HEPG2_se/HEPG2_zinb.csv", stringsAsFactors = FALSE)
+```
+
+```{r}
+###Add the columns for the experiment target
+load("developing_se/K562_se/se_K562.rda")
+
+data.k562$target <- colData(se)$Experiment.target
+
+load("developing_se/HEPG2_se/se_HEPG2.rda")
+
+data.hepg2$target <- colData(se)$Experiment.target
+
+data.joint <- inner_join(data.k562, data.hepg2, by = "target", suffix = c(".k", ".h"))
+```
+
+```{r}
+###Violin plot of log2 fold changes
+data.k562$cell_line <- "K562"
+data.hepg2$cell_line <- "HEPG2"
+data.merged <- bind_rows(data.k562, data.hepg2)
+
+ggplot(data = data.merged, aes(x = cell_line, y = log2fc, fill = cell_line)) +
+  geom_violin(trim = FALSE) +
+  geom_jitter(height = 0) +
+  scale_x_discrete(labels = c("HEPG2" = "HEPG2\nn_protein = 103",
+                              "K562" = "K562\nn_protein = 135")) +
+  labs(x="", y="log2 fold change") +
+  theme_bw() +
+  theme(text=element_text(size=50), legend.position = "none")
+```
+
+```{r}
+###Scatter plot of log2 fold changes on shared genes
+ggplot(data = data.joint, aes(x = log2fc.k, y = log2fc.h)) +
+  geom_point(color = "navy", alpha = .9) +
+  geom_abline(slope = 1, intercept = 0) +
+  geom_smooth(method = "loess", se = F) +
+  annotate("text", x=-4, y=-1, label = paste0("corr = ",round(cor(data.joint$log2fc.k, data.joint$log2fc.h), digits = 3)), size = 20) +
+  theme_bw() +
+  theme(text=element_text(size=50)) +
+  labs(x = "K562", y = "HEPG2", subtitle = paste0("log2 fold change (n_protein = ",nrow(data.joint),")") )
+```
+
+The log2 fold changes of the shared genes across the two datases are correlated. Althought the p-values are really close to 0, there are three proteins have log2 fold changes around 0, which looks weird.
+
+```{r}
+#Separate those three genes
+data.merged2 <- data.merged[order(data.merged$log2fc, decreasing = T),]
+data.merged2[1:3,]
+```
+
+```{r}
+load("developing_se/K562_se/se_K562.rda")
+
+rowTotal = 11
+keep <- rowSums(assay(se)) > rowTotal
+se <- se[keep,]
+# SAFB2-human      K562
+
+# select the protein of interest
+se.x <- se[, se$Experiment.target == "SAFB2-human"]
+
+se.nc <- se.x[rowData(se.x)$Gene_type %in% nc_labels, ]
+
+se.c <- se.x[rowData(se.x)$Gene_type %in% c_labels, ]
+
+logrowsums.nc <- log1p(rowSums(assay(se.nc)))
+logrowsums.c <- log1p(rowSums(assay(se.c)))
+
+mean(logrowsums.nc)
+# [1] 1.552147
+mean(logrowsums.c)
+# [1] 3.108747
+
+ggplot(data = data.frame( x = c(logrowsums.nc, logrowsums.c), 
+                          label = c( rep("non-coding", length(logrowsums.nc)), rep("coding", length(logrowsums.c)) ) ),
+       aes(x = x, fill = label)) +
+  geom_histogram(binwidth = 0.1, color="purple", alpha=0.6, position = 'identity') +
+  scale_fill_manual(values=c("red", "turquoise")) +
+  labs(x = "log(RNA count + 1)", fill="", y = "", subtitle = "SAFB2-human  K562") +
+  scale_x_continuous(n.breaks = 20) +
+  theme_bw() +
+  theme(text=element_text(size=50), axis.text.x = element_text(angle = 90))
+
+```
+
+```{r}
+###
+
+load("developing_se/HEPG2_se/se_HEPG2.rda")
+
+rowTotal = 11
+keep <- rowSums(assay(se)) > rowTotal
+se <- se[keep,]
+
+#SFPQ-human     HEPG2
+
+se.x <- se[, se$Experiment.target == "SFPQ-human"]
+
+se.nc <- se.x[rowData(se.x)$Gene_type %in% nc_labels, ]
+
+se.c <- se.x[rowData(se.x)$Gene_type %in% c_labels, ]
+
+logrowsums.nc <- log1p(rowSums(assay(se.nc)))
+logrowsums.c <- log1p(rowSums(assay(se.c)))
+
+ggplot(data = data.frame( x = c(logrowsums.nc, logrowsums.c), 
+                          label = c( rep("non-coding", length(logrowsums.nc)), rep("coding", length(logrowsums.c)) ) ),
+       aes(x = x, fill = label)) +
+  geom_histogram(binwidth = 0.1, color="purple", alpha=0.6, position = 'identity') +
+  scale_fill_manual(values=c("red", "turquoise")) +
+  labs(x = "log(RNA count + 1)", fill="", y = "", subtitle = "SFPQ-human  HEPG2") +
+  scale_x_continuous(n.breaks = 20) +
+  theme_bw() +
+  theme(text=element_text(size=50), axis.text.x = element_text(angle = 90))
+
+
+#HNRNPM-human     HEPG2
+
+se.x <- se[, se$Experiment.target == "HNRNPM-human"]
+
+se.nc <- se.x[rowData(se.x)$Gene_type %in% nc_labels, ]
+
+se.c <- se.x[rowData(se.x)$Gene_type %in% c_labels, ]
+
+logrowsums.nc <- log1p(rowSums(assay(se.nc)))
+logrowsums.c <- log1p(rowSums(assay(se.c)))
+
+ggplot(data = data.frame( x = c(logrowsums.nc, logrowsums.c), 
+                          label = c( rep("non-coding", length(logrowsums.nc)), rep("coding", length(logrowsums.c)) ) ),
+       aes(x = x, fill = label)) +
+  geom_histogram(binwidth = 0.1, color="purple", alpha=0.6, position = 'identity') +
+  scale_fill_manual(values=c("red", "turquoise")) +
+  labs(x = "log(RNA count + 1)", fill="", y = "", subtitle = "HNRNPM-human  HEPG2") +
+  scale_x_continuous(n.breaks = 20) +
+  theme_bw() +
+  theme(text=element_text(size=50), axis.text.x = element_text(angle = 90))
+
+```
+
+Although these three proteins have little log2 fold change, the histogram of log RNA counts demonstrate that there are strong differences between non-coding and coding genes in counts of binding RNA. We guess that the reason why those log2 fold changes are around 0 is that the right tail dominates the calculation of fold changes, which are computed in non-log space (The log2 fold changes are derived by log2-transformation of the fold changes).
 
 ## Data Analysis
 
 ### Heat Map Analysis
 
 ```{r echo=FALSE}
-K562_pheatmap <- as.data.frame(assay(K562.se))
-gene_type <- as.data.frame(K562.se@elementMetadata@listData$Gene_type)
-K562_pheatmap <- cbind(K562_pheatmap,gene_type)
+se_pheatmap <- as.data.frame(assay(se))
+gene_type <- as.data.frame(se@elementMetadata@listData$Gene_type)
+se_pheatmap <- cbind(se_pheatmap,gene_type)
 
 #annotating each event by the gene type
-Anno <- data.frame(GeneType = K562_pheatmap$`K562.se@elementMetadata@listData$Gene_type`)
+Anno <- data.frame(GeneType = se_pheatmap$`se@elementMetadata@listData$Gene_type`)
 
-rownames(K562_pheatmap) <- row.names(K562_pheatmap)
-rownames(Anno) <- row.names(K562_pheatmap)
+rownames(se_pheatmap) <- row.names(se_pheatmap)
+rownames(Anno) <- row.names(se_pheatmap)
 
-K562_pheatmap <- K562_pheatmap[order(K562_pheatmap$`K562.se@elementMetadata@listData$Gene_type`),]
+se_pheatmap <- se_pheatmap[order(se_pheatmap$`se@elementMetadata@listData$Gene_type`),]
 
-pheatmap(K562_pheatmap[1:135], cluster_rows=F, show_rownames=F,
+pheatmap(se_pheatmap[1:135], cluster_rows=F, show_rownames=F,
          cluster_cols=F, main = "Pheat map of K562", border_color = T,annotation_row = Anno,
          color =colorRampPalette(c('red','white','blue'))(100), scale = "row",fontsize = 4, cellwidth =5)
 ```
@@ -190,7 +685,7 @@ rownames(Anno) <- row.names(se2_pheatmap)
 se2_pheatmap <- se2_pheatmap[order(se2_pheatmap$`se2@elementMetadata@listData$Gene_type`),]
 
 pheatmap(se2_pheatmap[1:135], cluster_rows=F, show_rownames=F,
-         cluster_cols=F, main = "Pheat map of K562 Filtered", border_color = T,annotation_row = Anno,
+         cluster_cols=F, main = "Pheat map of K562", border_color = T,annotation_row = Anno,
          color =colorRampPalette(c('red','white','blue'))(100), scale = "row",fontsize = 4, cellwidth =5)
 ```
 
@@ -601,71 +1096,7 @@ We identified other pairs of lncRNAs and attempted to see if they were involved 
 
 <Major take away conclusions>
 
-Further analysis into other cell types, particularly another female of a similar age to the K562 donor, would be helpful to determining the level of conservation in RBP expression across cell types. Controlling for age and being able to reference sex-specific RNAs including XIST would expand ability for cross-comparison of functionally documented RNAs. The exact details of binding profiles can be extremely beneficial in determining how RNAs function, however, a variety of features such as binding target and RNA length seem to influence the RBP profiles, not just the type of function. 
-
-Another exciting route we can take is examining how the two cell types compare against each other across RBPs they share. Here we found 75 RBPs used in both cells!
-```{r}
-#K562 Cell Line
-se_assay <- as.data.frame(assay(K562.se))
-#Getting gene name
-se_assay$ensem = gsub("\\..*","",row.names(se_assay))
-se_assay$symbol = mapIds(org.Hs.eg.db,
-                           keys = se_assay$ensem,
-                           column = "SYMBOL",
-                           keytype="ENSEMBL",
-                           multiVals = "first")
-
-se_assay <- subset(se_assay, select = c(136:137,1:135))
-#Getting genetype
-GeneType <- data.frame(GeneType = K562.se@elementMetadata@listData$Gene_type)
-
-se_assay = cbind(se_assay,GeneType)
-
-k562 <- (se_assay)
-#changing colnames to the experiment target
-targets2 <- as.data.frame(K562.se$Experiment.target)
-colnames(k562)[3:137] <- targets2$`K562.se$Experiment.target`
-#labeling cell line
-CellLine = as.data.frame(rep("k562",dim(k562)[1]))
-names(CellLine)[names(CellLine) == 'rep("k562", dim(k562)[1])'] <- "CellLine"
-k562 = cbind(k562,CellLine)
-
-#HEPG2 Cell Lines
-se2_Hep_assay <- as.data.frame(assay(HEPG2.se))
-#Getting gene name
-se2_Hep_assay$ensem = gsub("\\..*","",row.names(se2_Hep_assay))
-se2_Hep_assay$symbol = mapIds(org.Hs.eg.db,
-                         keys = se2_Hep_assay$ensem,
-                         column = "SYMBOL",
-                         keytype="ENSEMBL",
-                         multiVals = "first")
-se2_Hep_assay <- subset(se2_Hep_assay, select = c(104:105,1:103))
-#Getting genetype
-GeneType <- data.frame(GeneType = HEPG2.se@elementMetadata@listData$Gene_type)
-
-se2_Hep_assay = cbind(se2_Hep_assay,GeneType)
-
-hepg2 <- (se2_Hep_assay)
-#changing colnames to the experiment target
-targets <- as.data.frame(HEPG2.se$Experiment.target)
-colnames(hepg2)[3:105] <- targets$`HEPG2.se$Experiment.target`
-#labeling cell line
-CellLine = as.data.frame(rep("hepg2",dim(hepg2)[1]))
-names(CellLine)[names(CellLine) == 'rep("hepg2", dim(hepg2)[1])'] <- "CellLine"
-hepg2 = cbind(hepg2,CellLine)
-
-#Seeing where they intersect
-bL <- as.data.frame(intersect(names(k562), names(hepg2)))
-bL <- as.character(intersect(names(k562), names(hepg2)))
-
-#Extracting common colnames from both lines
-hepg2 <- hepg2 %>% dplyr::select(bL)
-
-k562 <- k562 %>% dplyr::select(bL)
-
-#combining both lines
-bothLines <- rbind(k562,hepg2)
-```
+Further analysis into other cell types, particularly another female of a similar age to the K562 donor, would be helpful to determining the level of conservation in RBP expression across cell types. Controlling for age and being ab  le to reference sex-specific RNAs including XIST would expand ability for cross-comparison of functionally documented RNAs. The exact details of binding profiles can be extremely beneficial in determining how RNAs function, however, a variety of features such as binding target and RNA length seem to influence the RBP profiles, not just the type of function.  
 
 ## References
 

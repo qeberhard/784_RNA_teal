@@ -5,7 +5,7 @@ date: "2022-12-02"
 output: html_document
 ---
 
-```{r echo=FALSE}
+```{r echo=FALSE, warning=FALSE, message=FALSE}
 library(SummarizedExperiment, quietly=T)
 library(dplyr)
 library(readr)
@@ -154,7 +154,7 @@ ggplot(data = data.frame( x = logrowsums ), aes(x = x)) +
   labs(x = "log(total RNA count + 1)", y = "") +
   scale_x_continuous(n.breaks = 20) +
   theme_bw() +
-  theme(text=element_text(size=50), axis.text.x = element_text(angle = 90))
+  theme(text=element_text(size=25), axis.text.x = element_text(angle = 90))
 ```
 
 ```{r}
@@ -171,7 +171,7 @@ ggplot(data = data.frame( x = c(logrowsums.nc, logrowsums.c),
   labs(x = "log(total RNA count + 1)", fill="", y = "") +
   scale_x_continuous(n.breaks = 20) +
   theme_bw() +
-  theme(text=element_text(size=50), axis.text.x = element_text(angle = 90))
+  theme(text=element_text(size=25), axis.text.x = element_text(angle = 90))
 ```
 
 
@@ -185,7 +185,7 @@ ggplot(data = data.frame( x = logcolsums ), aes(x = x)) +
   labs(x = "log(total RNA count + 1)  (for each protein)", y = "") +
   scale_x_continuous(n.breaks = 10) +
   theme_bw() +
-  theme(text=element_text(size=50), axis.text.x = element_text(angle = 90))
+  theme(text=element_text(size=25), axis.text.x = element_text(angle = 90))
 ```
 
 ```{r}
@@ -198,7 +198,7 @@ ggplot(data = data.frame( x = proteinCount ), aes(x = x)) +
   labs(x = "no. of binding proteins", y = "") +
   scale_x_continuous(n.breaks = 10) +
   theme_bw() +
-  theme(text=element_text(size=50), axis.text.x = element_text(angle = 90))
+  theme(text=element_text(size=25), axis.text.x = element_text(angle = 90))
 ```
 
 ```{r}
@@ -206,9 +206,9 @@ ggplot(data = data.frame( x = proteinCount ), aes(x = x)) +
 #Relationship between log total RNA counts and number of binding proteins
 ggplot(data = data.frame(x = logrowsums, y = proteinCount), aes(x = x, y = y)) +
   geom_jitter(shape = 1, color = "navy", alpha = 0.1) +
-  annotate("text", x=13, y=100, label = paste0("corr = ",round(cor(logrowsums, proteinCount), digits = 3)), size = 20) +
+  annotate("text", x=13, y=100, label = paste0("corr = ",round(cor(logrowsums, proteinCount), digits = 3)), size = 10) +
   theme_bw() +
-  theme(text=element_text(size=50)) +
+  theme(text=element_text(size=25)) +
   labs(x = "log(total RNA count + 1)", y = "no. of binding proteins") 
 ```
 
@@ -224,7 +224,7 @@ ggplot(data = data.frame( x = logrowsums ), aes(x = x)) +
   scale_x_continuous(n.breaks = 20) +
   geom_vline(xintercept = cutoff, color = "chocolate", linetype = "longdash") +
   theme_bw() +
-  theme(text=element_text(size=50), axis.text.x = element_text(angle = 90))
+  theme(text=element_text(size=25), axis.text.x = element_text(angle = 90))
 
 ```
 
@@ -251,7 +251,7 @@ ggplot(data = data.frame( x = logrowsums ), aes(x = x)) +
   labs(x = "log(total RNA count + 1)", y = "") +
   scale_x_continuous(n.breaks = 20) +
   theme_bw() +
-  theme(text=element_text(size=50), axis.text.x = element_text(angle = 90))
+  theme(text=element_text(size=25), axis.text.x = element_text(angle = 90))
 ```
 
 ```{r}
@@ -268,7 +268,7 @@ ggplot(data = data.frame( x = c(logrowsums.nc, logrowsums.c),
   labs(x = "log(total RNA count + 1)", fill="", y = "") +
   scale_x_continuous(n.breaks = 20) +
   theme_bw() +
-  theme(text=element_text(size=50), axis.text.x = element_text(angle = 90))
+  theme(text=element_text(size=25), axis.text.x = element_text(angle = 90))
 ```
 
 
@@ -282,7 +282,7 @@ ggplot(data = data.frame( x = logcolsums ), aes(x = x)) +
   labs(x = "log(total RNA count + 1)  (for each protein)", y = "") +
   scale_x_continuous(n.breaks = 10) +
   theme_bw() +
-  theme(text=element_text(size=50), axis.text.x = element_text(angle = 90))
+  theme(text=element_text(size=25), axis.text.x = element_text(angle = 90))
 ```
 
 ```{r}
@@ -295,7 +295,7 @@ ggplot(data = data.frame( x = proteinCount ), aes(x = x)) +
   labs(x = "no. of binding proteins", y = "") +
   scale_x_continuous(n.breaks = 10) +
   theme_bw() +
-  theme(text=element_text(size=50), axis.text.x = element_text(angle = 90))
+  theme(text=element_text(size=25), axis.text.x = element_text(angle = 90))
 ```
 
 ```{r}
@@ -303,9 +303,9 @@ ggplot(data = data.frame( x = proteinCount ), aes(x = x)) +
 #Relationship between log total RNA counts and number of binding proteins
 ggplot(data = data.frame(x = logrowsums, y = proteinCount), aes(x = x, y = y)) +
   geom_jitter(shape = 1, color = "navy", alpha = 0.1) +
-  annotate("text", x=13, y=100, label = paste0("corr = ",round(cor(logrowsums, proteinCount), digits = 3)), size = 20) +
+  annotate("text", x=13, y=100, label = paste0("corr = ",round(cor(logrowsums, proteinCount), digits = 3)), size = 10) +
   theme_bw() +
-  theme(text=element_text(size=50)) +
+  theme(text=element_text(size=25)) +
   labs(x = "log(total RNA count + 1)", y = "no. of binding proteins") 
 ```
 
@@ -321,7 +321,7 @@ ggplot(data = data.frame( x = logrowsums ), aes(x = x)) +
   scale_x_continuous(n.breaks = 20) +
   geom_vline(xintercept = cutoff, color = "chocolate", linetype = "longdash") +
   theme_bw() +
-  theme(text=element_text(size=50), axis.text.x = element_text(angle = 90))
+  theme(text=element_text(size=25), axis.text.x = element_text(angle = 90))
 
 ```
 
@@ -502,7 +502,7 @@ ggplot(data = data.merged, aes(x = cell_line, y = log2fc, fill = cell_line)) +
                               "K562" = "K562\nn_protein = 135")) +
   labs(x="", y="log2 fold change") +
   theme_bw() +
-  theme(text=element_text(size=50), legend.position = "none")
+  theme(text=element_text(size=25), legend.position = "none")
 ```
 
 ```{r}
@@ -511,9 +511,9 @@ ggplot(data = data.joint, aes(x = log2fc.k, y = log2fc.h)) +
   geom_point(color = "navy", alpha = .9) +
   geom_abline(slope = 1, intercept = 0) +
   geom_smooth(method = "loess", se = F) +
-  annotate("text", x=-4, y=-1, label = paste0("corr = ",round(cor(data.joint$log2fc.k, data.joint$log2fc.h), digits = 3)), size = 20) +
+  annotate("text", x=-4, y=-1, label = paste0("corr = ",round(cor(data.joint$log2fc.k, data.joint$log2fc.h), digits = 3)), size = 10) +
   theme_bw() +
-  theme(text=element_text(size=50)) +
+  theme(text=element_text(size=25)) +
   labs(x = "K562", y = "HEPG2", subtitle = paste0("log2 fold change (n_protein = ",nrow(data.joint),")") )
 ```
 
@@ -554,7 +554,7 @@ ggplot(data = data.frame( x = c(logrowsums.nc, logrowsums.c),
   labs(x = "log(RNA count + 1)", fill="", y = "", subtitle = "SAFB2-human  K562") +
   scale_x_continuous(n.breaks = 20) +
   theme_bw() +
-  theme(text=element_text(size=50), axis.text.x = element_text(angle = 90))
+  theme(text=element_text(size=25), axis.text.x = element_text(angle = 90))
 
 ```
 
@@ -584,7 +584,7 @@ ggplot(data = data.frame( x = c(logrowsums.nc, logrowsums.c),
   labs(x = "log(RNA count + 1)", fill="", y = "", subtitle = "SFPQ-human  HEPG2") +
   scale_x_continuous(n.breaks = 20) +
   theme_bw() +
-  theme(text=element_text(size=50), axis.text.x = element_text(angle = 90))
+  theme(text=element_text(size=25), axis.text.x = element_text(angle = 90))
 
 
 #HNRNPM-human     HEPG2
@@ -606,7 +606,7 @@ ggplot(data = data.frame( x = c(logrowsums.nc, logrowsums.c),
   labs(x = "log(RNA count + 1)", fill="", y = "", subtitle = "HNRNPM-human  HEPG2") +
   scale_x_continuous(n.breaks = 20) +
   theme_bw() +
-  theme(text=element_text(size=50), axis.text.x = element_text(angle = 90))
+  theme(text=element_text(size=25), axis.text.x = element_text(angle = 90))
 
 ```
 
@@ -630,6 +630,7 @@ pheatmap(K562_pheatmap[1:135], cluster_rows=F, show_rownames=F,
          cluster_cols=F, main = "Pheat map of K562", border_color = T,annotation_row = Anno,
          color =colorRampPalette(c('red','white','blue'))(100), scale = "row",fontsize = 4, cellwidth =5)
 ```
+
 Looking at the pheatmap, we see many events/genes that show little to no expression and many different types of genes. This will be later filtered out.
 
 ### Clustering Analysis - K562 cells
@@ -1026,8 +1027,6 @@ Normalizing by length clearly increases the difference, with XIST expressing str
 We identified other pairs of lncRNAs and attempted to see if they were involved in similar processes, but there were too many unknowns to make much headway. We do recognize that near XIST and XACT are the lncRNAs NEAT1 and MALAT1, both of which are involved in the formation and/or function of speckles, which are complex regions of local transcriptional activation. We also notice a particular long mRNA, FASN, is found in the farther reaches of the PCA plot, near these other four lncRNAs. This might indicate some amount of overlap with predicting length, as a longer RNA is more likely to bind more proteins, influencing the RBP profiles. Overall, these findings lead us to believe that a complex combination of the function, non-protein binding targets, and length of the transcript may all influence clustering proximity between RNAs. As more is learned about lncRNAs, perhaps given a plot similar to the PCA, a "connect-the-dot" approach can be used. Specifically, if an unknown lncRNA is positioned very near to a group of known lncRNAs, then perhaps it could give insight into the possible function of the unknown lncRNA.
 
 ## Conclusions
-
-<Major take away conclusions>
 
 Further analysis into other cell types, particularly another female of a similar age to the K562 donor, would be helpful to determining the level of conservation in RBP expression across cell types. Controlling for age and being able to reference sex-specific RNAs including XIST would expand ability for cross-comparison of functionally documented RNAs. The exact details of binding profiles can be extremely beneficial in determining how RNAs function, however, a variety of features such as binding target and RNA length seem to influence the RBP profiles, not just the type of function. 
 
