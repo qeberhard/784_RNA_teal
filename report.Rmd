@@ -85,7 +85,7 @@ rowTotal = 0
 K562_keep <- rowSums(assay(K562.se)) > 0
 K562.se <- K562.se[K562_keep,]
 
-save(K562.se, file = "derived_data/se_K562.rda")
+save(K562.se, file = ""developing_se/K562_se/se_K562.rda")
 
 #Filtering gene types to select for protein coding and lncRNA
 K562_gene_type <- as.data.frame(K562.se@elementMetadata@listData$Gene_type)
@@ -96,7 +96,7 @@ K562_gene_type <- K562_gene_type[order(-K562_gene_type$n),]
 K562_wantedGenes <- c('protein_coding',"lncRNA")
 K562_keep2 <- K562.se@elementMetadata@listData$Gene_type ==  K562_wantedGenes 
 K562.se2 <- K562.se[K562_keep2,]
-save(K562.se2, file = "derived_data/se2_K562.rda")
+save(K562.se2, file = ""developing_se/K562_se/se2_K562.rda")
 ```
 
 This process is repeated for the HEPG2 cell data, initially in `developing_se/HEPG2_se/loading_HEPG2_se_object.Rmd`. The same filtration steps taken in the K562 SummarizedExperiment development methods were repeated here and saved in `se2_HEPG2.rda`. The original SE object is also updated to reflect only those genes that indicate some non-zero level of expression.
@@ -122,7 +122,7 @@ rowTotal = 0
 HEPG2_keep <- rowSums(assay(HEPG2.se)) > 0
 HEPG2.se <- HEPG2.se[HEPG2_keep,]
 
-save(HEPG2.se, file = "derived_data/se_HEPG2.rda")
+save(HEPG2.se, file = ""developing_se/HEPG2_se/se_HEPG2.rda")
 
 #Filtering gene types to select for protein coding and lncRNA
 HEPG2_gene_type <- as.data.frame(HEPG2.se@elementMetadata@listData$Gene_type)
@@ -133,7 +133,7 @@ HEPG2_gene_type <- HEPG2_gene_type[order(-HEPG2_gene_type$n),]
 HEPG2_wantedGenes <- c('protein_coding',"lncRNA")
 HEPG2_keep2 <- HEPG2.se@elementMetadata@listData$Gene_type ==  HEPG2_wantedGenes 
 HEPG2.se2 <- HEPG2.se[HEPG2_keep2,]
-save(HEPG2.se2, file = "derived_data/se2_HEPG2.rda")
+save(HEPG2.se2, file = ""developing_se/HEPG2_se/se2_HEPG2.rda")
 ```
 
 ### Further Filtering the SummarizedExperiments
