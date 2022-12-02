@@ -630,7 +630,6 @@ CellLine = as.data.frame(rep("k562",dim(k562)[1]))
 names(CellLine)[names(CellLine) == 'rep("k562", dim(k562)[1])'] <- "CellLine"
 k562 = cbind(k562,CellLine)
 
-
 #HEPG2 Cell Lines
 se2_Hep_assay <- as.data.frame(assay(HEPG2.se))
 #Getting gene name
