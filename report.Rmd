@@ -603,7 +603,7 @@ We identified other pairs of lncRNAs and attempted to see if they were involved 
 
 Further analysis into other cell types, particularly another female of a similar age to the K562 donor, would be helpful to determining the level of conservation in RBP expression across cell types. Controlling for age and being able to reference sex-specific RNAs including XIST would expand ability for cross-comparison of functionally documented RNAs. The exact details of binding profiles can be extremely beneficial in determining how RNAs function, however, a variety of features such as binding target and RNA length seem to influence the RBP profiles, not just the type of function. 
 
-Another exciting route we can take is examing how the two cell types compare against each other across RBPs they share. Here we found 75 RBPs used in both cells!
+Another exciting route we can take is examining how the two cell types compare against each other across RBPs they share. Here we found 75 RBPs used in both cells!
 ```{r}
 #K562 Cell Line
 se_assay <- as.data.frame(assay(K562.se))
@@ -629,9 +629,6 @@ colnames(k562)[3:137] <- targets2$`K562.se$Experiment.target`
 CellLine = as.data.frame(rep("k562",dim(k562)[1]))
 names(CellLine)[names(CellLine) == 'rep("k562", dim(k562)[1])'] <- "CellLine"
 k562 = cbind(k562,CellLine)
-
-
-
 
 
 #HEPG2 Cell Lines
