@@ -20,7 +20,6 @@ library(clusterProfiler)
 library(pheatmap)
 library(vioplot)
 library(glmmTMB)
-
 ```
 
 ## Introduction/Biological Relevance
@@ -389,34 +388,34 @@ data.result.wilcox
 ```{r}
 #K562
 #ZINB
-data.result.zinb <- data.frame(protein = colnames(se), p.val = NA, log2fc = NA)
+# data.result.zinb <- data.frame(protein = colnames(se), p.val = NA, log2fc = NA)
+# 
+# for (i in 1:ncol(se)) {
+#   
+#   dat <- data.frame( count = c(mtx.nc[,i], mtx.c[,i]),
+#               label = c( rep(1, nrow(mtx.nc)), rep(0, nrow(mtx.c)) ) )
+#   
+#   m1 <- glmmTMB(count ~ label, data = dat, ziformula = ~., family = nbinom2(link = "log"))
+#   
+#   # null model
+#   
+#   m0 <- update(m1, . ~ 1)
+#   
+#   pval = pchisq(2 * (logLik(m1) - logLik(m0)), df = 2, lower.tail=FALSE)
+#   pval = as.numeric(pval)
+#   
+#   data.result.zinb$p.val <- pval
+# 
+#   fc <- mean(mtx.nc[,i])/mean(mtx.c[,i])
+#   
+#   data.result.zinb$log2fc[i] <- log2(fc)
+#   
+#   print(i)
+# }
+# 
+# data.result.zinb
 
-for (i in 1:ncol(se)) {
-  
-  dat <- data.frame( count = c(mtx.nc[,i], mtx.c[,i]),
-              label = c( rep(1, nrow(mtx.nc)), rep(0, nrow(mtx.c)) ) )
-  
-  m1 <- glmmTMB(count ~ label, data = dat, ziformula = ~., family = nbinom2(link = "log"))
-  
-  # null model
-  
-  m0 <- update(m1, . ~ 1)
-  
-  pval = pchisq(2 * (logLik(m1) - logLik(m0)), df = 2, lower.tail=FALSE)
-  pval = as.numeric(pval)
-  
-  data.result.zinb$p.val <- pval
-
-  fc <- mean(mtx.nc[,i])/mean(mtx.c[,i])
-  
-  data.result.zinb$log2fc[i] <- log2(fc)
-  
-  print(i)
-}
-
-data.result.zinb
-
-#The resutls are in K562_zinb.csv
+#The resutls are saved in K562_zinb.csv
 ```
 
 ```{r}
@@ -459,34 +458,34 @@ data.result.wilcox
 ```{r}
 #HEPG2
 #ZINB
-data.result.zinb <- data.frame(protein = colnames(se), p.val = NA, log2fc = NA)
+# data.result.zinb <- data.frame(protein = colnames(se), p.val = NA, log2fc = NA)
+# 
+# for (i in 1:ncol(se)) {
+#   
+#   dat <- data.frame( count = c(mtx.nc[,i], mtx.c[,i]),
+#               label = c( rep(1, nrow(mtx.nc)), rep(0, nrow(mtx.c)) ) )
+#   
+#   m1 <- glmmTMB(count ~ label, data = dat, ziformula = ~., family = nbinom2(link = "log"))
+#   
+#   # null model
+#   
+#   m0 <- update(m1, . ~ 1)
+#   
+#   pval = pchisq(2 * (logLik(m1) - logLik(m0)), df = 2, lower.tail=FALSE)
+#   pval = as.numeric(pval)
+#   
+#   data.result.zinb$p.val <- pval
+# 
+#   fc <- mean(mtx.nc[,i])/mean(mtx.c[,i])
+#   
+#   data.result.zinb$log2fc[i] <- log2(fc)
+#   
+#   print(i)
+# }
+# 
+# data.result.zinb
 
-for (i in 1:ncol(se)) {
-  
-  dat <- data.frame( count = c(mtx.nc[,i], mtx.c[,i]),
-              label = c( rep(1, nrow(mtx.nc)), rep(0, nrow(mtx.c)) ) )
-  
-  m1 <- glmmTMB(count ~ label, data = dat, ziformula = ~., family = nbinom2(link = "log"))
-  
-  # null model
-  
-  m0 <- update(m1, . ~ 1)
-  
-  pval = pchisq(2 * (logLik(m1) - logLik(m0)), df = 2, lower.tail=FALSE)
-  pval = as.numeric(pval)
-  
-  data.result.zinb$p.val <- pval
-
-  fc <- mean(mtx.nc[,i])/mean(mtx.c[,i])
-  
-  data.result.zinb$log2fc[i] <- log2(fc)
-  
-  print(i)
-}
-
-data.result.zinb
-
-#The resutls are in HEPG2_zinb.csv
+#The resutls are saved in HEPG2_zinb.csv
 ```
 
 All p-values are very close to 0. This suggests a huge discrepancy between non-coding and coding genes on protein binding.
