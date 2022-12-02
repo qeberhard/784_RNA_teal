@@ -16,7 +16,7 @@ library(GO.db)
 library(MASS)
 library(ggplot2)
 library(viridis)
-#library(clusterProfiler)
+library(clusterProfiler)
 library(pheatmap)
 library(vioplot)
 ```
@@ -27,29 +27,38 @@ Long non-coding RNA (lncRNA) is a form of RNA that is longer than 200 nucleotide
 
 One way to measure this is through an assay known as eCLIP (enhanced CrossLinking ImmunoPrecipitation). A protein of interest is added to a cell where it binds to RNAs with relevant sequence or structural motifs. An antibody that is specific to the protein is used to extract the protein, bringing with it the bound RNAs. These RNAs are then fragmented and the portions that were bound to the protein are sequenced, resulting in an understanding of both which RNAs bind the protein and what portion of each RNAs *sequence* is relevant to binding the protein.
 
-This assay is performed one protein at a time, yet Gene Yeo's lab has uploaded 135 K562 assays and 103 HEPG2 assays to the ENCODE database. 
-[Describe wetlab eCLIP methods, data curation] 
-Here we use this data to construct a **protein binding profile** for each RNA transcript in the cell in order to determine which proteins bind or do not bind to each transcript.
+This assay is performed one protein at a time, yet Gene Yeo's lab has uploaded 135 K562 assays and 103 HEPG2 assays to the ENCODE database. Their findings have been documented in Nature Methods (Nostrand et al., 2016), and their precise methods to obtain the data on Encode is detailed in the 'General Protocol' section of each experiment on ENCODE (Nostrand & Yeo, 2015). For each experiment, four different libraries were used to document the eCLIP data. Two were performed using eCLIP on UV crosslinked replicates, one was eCLIP on a non-UV crosslinked replicate, and one was developed with a control of a similar size to one of the two UV crosslinked replicates. For each sample, the cells were lysed and the three eCLIP samples were taken from the lysis pellets. 
 
-In this report, we determine differences between the protein association to RNA transcripts in K562 and HEPG2 cells and investigate whether RNA function can be predicted from which proteins it binds. [Quick note: I liked that you mentioned how K562 cells have two X chromosomes and HEPG2 cells have one. So we expect to see a difference for Xist in both. You laid this out more eloquently in your presentation and I thought it would be helpful to mention it in here too :)]
+ENCODE enforces data standards for experiments to be published there, and in order to meet the standards for biological replicates the samples were taken from different distinctly different cultures from the same source. Next, beads were prepared and added to the samples in order to bind the antibodies. The lysate was treated with DNase, RNase I, and then Murine RNase Inhibitor, centrifuged, and the supernatant was retained separately. Antibody beads were then washed in iCLIP lysis buffer, some backups were stored of each sample, and then processed in a cold room for a minimum of two hours. The beads were then washed, treated with FastAP and PNK, and washed again. The 3' RNA linkers were the ligated on the beads, and the prepared for CLIP and Western gels. CLIP gels assist with membrane transfer and RNA isolation while Western gels are used for Western imaging/protein detection. An igG IP is performed on the Western gel to guarantee the specificity of the antibodies used for extraction. Once these gels have been run, the samples are transferred to membranes, allowed to develop, and then RNA is cut out of the membranes and extensively purified. Ultimately, the samples are reverse transcribed before being quantified with qPCR and then PCR amplified.
+
+Here we use this data to construct a **protein binding profile** for each RNA transcript in the cell in order to determine which proteins bind or do not bind to each transcript. In this report, we identify differences between the protein association to RNA transcripts in K562 and HEPG2 cells and investigate whether RNA function can be predicted from which proteins it binds. We fully anticipate differences in part due to the nature of the two cell lines, K562 cells are from a 52 year old female chronic myelogenous leukemia (CML) patient, sampled from the bone marrow and therefore a blood tissue. In contrast, HEPG2 cells are from a 15 year old male hepatocellular carcinoma patient, sampled from the  liver. These samples vary in age, sex, and tissue type. Both are also cancer cell lines, though not of the same type of cancer. We expect extensive variation of a result of these factors. One easily identifiable with lncRNAs will be the absence of XIST in the HEPG2 cells, as only females can express XIST. As this lncRNA is valuable in functional reference, this might complicate HEPG2 analysis, but intra-K562 analysis will still be able to use XIST information effectively. 
 
 ## Methods
 
 ### Constructing the SummarizedExperiments
 
-Here we analyzed the RNA-protein binding preferences of two human cell lines: K562 and HEPG2 cells. K562 cells are from a 52 year old female with erythroleukemia cancer, and HEPG2 cells are hepatocellular carcinoma cells from a 15 year old boy. Both have been thoroughly studied for biological analyses but here we wanted to identify similarities and differences between them in the context of eCLIP assays.
+Here we analyzed the RNA-protein binding preferences of two human cell lines: K562 and HEPG2 cells. K562 cells are from a 52 year old female with erythroleukemia cancer, and HEPG2 cells are hepatocellular carcinoma cells from a 15 year old male. Both have been thoroughly studied for biological analyses but here we wanted to identify similarities and differences between them in the context of eCLIP assays.
 
-ENCODE provides these datasets for easy processed-file downloads, so we downloaded the bam files for all experiments for each cell type.
+ENCODE provides these datasets for easy pre-processed file downloads, so we downloaded the bam files for all experiments for each cell type:
 
 ```{bash}
+#mkdir downloaded_files
+#cd downloaded_files
+#cp ../download_K562_files.txt .
 #xargs -L 1 curl -O -J -L < download_K562_files.txt
+#cp metadata.tsv metadata_K562.tsv
+#rm metadata.tsv
 ```
 
-These bam files were not included in this repository. However, the downloaded `metadata_K562.tsv` file is included in the `developing_se/` directory which includes information on all of the downloaded files for each experiment. which was later used to develop the colData() of the SummarizedExperiments.
+The pre-processed bam files were developed using the Yeo lab's 'eCLIP-seq Processing Pipeline', which prepares sequence data for ready analysis (Yeo, 2020). Fastq formatted sequencing data is processed for paired-end reads if relevant, removing UMIs and barcodes. Adapters are trimmed, repeat elements are mapped and filtered, and then reads are mapped to the genome using the STAR aligner. PCR duplicates are then extracted, custom inline barcodes and filters are merged, and peak regions are then called. Lastly, data is normalized to the size-matched sample performed as part of the experiment as mentioned earlier, and fold change enrichment in the peaks is called. The custom scripts are all available through the Yeo lab Github eCLIP page. The bam files developed in this process are used for our analysis here.
 
-The file `bam_file_mappings.tsv` was generated from the python script `map_bam_replicates.py`. There were two replicates for each experiment, so we merged the bam files using `samtools merge` for each replicate, then ran featureCounts to determine the RBP counts (script in `serial_bam_merge.sh`). featureCounts is a tool in the Subreads package developed by Yang Liao and Wei Shi that identifies the genomic features of sequence reads through ---. This allowed us to determine for each experiment how many reads mapped to each transcript. This would ultimately develop one column of the SummarizedExperiment. The `gencode.v39.basic.annotation.gtf` genome was downloaded from GENCODE for GRCh38.p13 and was used for featureCount runs. This gtf file then also informed the development of the rowData() of the summarized experiments.
+No bam files were included in this repository, however, the downloaded `K562_se/K562_metadata.tsv` file is included in the `developing_se/` directory and includes information on all of the downloaded files for each experiment, which was later used to develop the colData() of the SummarizedExperiments. The `K562_se/develop_K562_column_data.py` and `HEPG2_se/develop_HEPG2_column_data.py` files show how the column data was obtained for each experiment out of the `K562_se/K562_metadata.tsv` and `HEPG2_se/HEPG2_metadata.tsv` files, resulting in `K562_se/column_data_K562.tsv` and `HEPG2_se/column_data_HEPG2.tsv` which are loaded into SummarizedExperiment colData() below.
 
-The SummarizedExperiment was developed by the code in `loading_K562_se_object.Rmd` and the .Rda object is generated and stored in the derived_data/ directory of the repository upon a `make` build. The individual matrices of the asssay(), colData(), and rowData() are also included in the files K562_assay.tsv, K562_colData.tsv, and K562_rowData.tsv.
+The file `bam_file_mappings.tsv` was generated from the HEPG2 or K562 versions of the `map_bam_replicates.py` script. There were two replicates for each experiment, so we merged the bam files using `samtools merge` for each replicate, then ran featureCounts to determine the RBP counts (script in `serial_bam_merge.sh`). featureCounts is a tool in the Subreads package developed by Yang Liao and Wei Shi that quantifies the instances of genomic features in sequence reads. This allowed us to determine for each experiment how many reads mapped to each transcript (`developing_se/feature_counts.sh`). This would ultimately develop one column of the SummarizedExperiment. The `gencode.v39.basic.annotation.gtf` genome was downloaded from GENCODE for GRCh38.p13 and was used for featureCount annotation. This gtf file then also informed the development of the rowData() of the SummarizedExperiments.
+
+In the K562 development, several of the eCLIP experiments were done as single end reads rather than paired ends. Those were identified from errors in the initial `feature_counts.sh` attempt and were manually corrected for in the `developing_se/single_end_feature_counts.sh` file, where the rest were processed, this step was not necessary for the HEPG2 cell experiments. All featureCounts results were compiled in the `developing_se/make_count_matrix.py` script - this must be run separately for each cell type data.
+
+The SummarizedExperiment was developed by the code in `developing_se/K562_se/loading_K562_se_object.Rmd` and the .Rda object is generated and stored in the derived_data/ directory of the repository. This code is also located below. The individual matrices of the asssay(), colData(), and rowData() are also included in the files K562_assay.tsv, K562_colData.tsv, and K562_rowData.tsv.
 
 ```{r}
 #Read in count matrix and column data
@@ -71,13 +80,12 @@ K562.se <- SummarizedExperiment(assays = list(counts = data.matrix(K562_counts))
 
 Once the initial SummarizedExperiment was constructed, it was necessary to perform basic filtering to remove any genes that are not expressed in any of the eCLIP experiments for the cell type, and the initial K562.se object was updated as well to represent this. Given the goals of this exploration, only genes labeled as "lncRNA" or as "protein_coding" were retained in the dataset. This selection was stored as `se2_K562.rda`.
 ```{r}
-
 #Filtering number of counts for each row to remove unexpressed genes
 rowTotal = 0
 K562_keep <- rowSums(assay(K562.se)) > 0
 K562.se <- K562.se[K562_keep,]
 
-#save(K562.se, file = "derived_data/se_K562.rda")
+save(K562.se, file = ""developing_se/K562_se/se_K562.rda")
 
 #Filtering gene types to select for protein coding and lncRNA
 K562_gene_type <- as.data.frame(K562.se@elementMetadata@listData$Gene_type)
@@ -88,36 +96,10 @@ K562_gene_type <- K562_gene_type[order(-K562_gene_type$n),]
 K562_wantedGenes <- c('protein_coding',"lncRNA")
 K562_keep2 <- K562.se@elementMetadata@listData$Gene_type ==  K562_wantedGenes 
 K562.se2 <- K562.se[K562_keep2,]
-#save(K562.se2, file = "derived_data/se2_K562.rda")
+save(K562.se2, file = ""developing_se/K562_se/se2_K562.rda")
 ```
 
-
-Once the initial SummarizedExperiment was constructed, it was necessary to perform basic filtering to remove any genes that are not expressed in any of the eCLIP experiments for the cell type, and the initial K562.se object was updated as well to represent this. Given the goals of this exploration, only genes labeled as "lncRNA" or as "protein_coding" were retained in the dataset. This selection was stored as `se2_K562.rda`.
-
-```{r}
-
-#Filtering number of counts for each row to remove unexpressed genes
-rowTotal = 0
-K562_keep <- rowSums(assay(K562.se)) > 0
-K562.se <- K562.se[K562_keep,]
-
-#save(K562.se, file = "derived_data/se_K562.rda")
-
-#Filtering gene types to select for protein coding and lncRNA
-K562_gene_type <- as.data.frame(K562.se@elementMetadata@listData$Gene_type)
-colnames(K562_gene_type) <- c("GENETYPE")
-K562_gene_type <- as.data.frame(count(K562_gene_type, GENETYPE))
-K562_gene_type <- K562_gene_type[order(-K562_gene_type$n),]
-
-K562_wantedGenes <- c('protein_coding',"lncRNA")
-K562_keep2 <- K562.se@elementMetadata@listData$Gene_type ==  K562_wantedGenes 
-K562.se2 <- K562.se[K562_keep2,]
-#save(K562.se2, file = "derived_data/se2_K562.rda")
-```
-
-
-This process is repeated for the HEPG2 cell data. The same filtration steps taken in the K562 SummarizedExperiment development methods were repeated here and saved in `se2_HEPG2.rda`. The original SE object is also updated to reflect only those genes that indicate some non-zero level of expression.
-
+This process is repeated for the HEPG2 cell data, initially in `developing_se/HEPG2_se/loading_HEPG2_se_object.Rmd`. The same filtration steps taken in the K562 SummarizedExperiment development methods were repeated here and saved in `se2_HEPG2.rda`. The original SE object is also updated to reflect only those genes that indicate some non-zero level of expression.
 ```{r warning=FALSE}
 #Read in count matrix and column data
 HEPG2_counts <- read.csv("developing_se/HEPG2_se/HEPG2_count_file.tsv", sep="\t")
@@ -140,7 +122,7 @@ rowTotal = 0
 HEPG2_keep <- rowSums(assay(HEPG2.se)) > 0
 HEPG2.se <- HEPG2.se[HEPG2_keep,]
 
-#save(HEPG2.se, file = "derived_data/se_HEPG2.rda")
+save(HEPG2.se, file = ""developing_se/HEPG2_se/se_HEPG2.rda")
 
 #Filtering gene types to select for protein coding and lncRNA
 HEPG2_gene_type <- as.data.frame(HEPG2.se@elementMetadata@listData$Gene_type)
@@ -151,7 +133,7 @@ HEPG2_gene_type <- HEPG2_gene_type[order(-HEPG2_gene_type$n),]
 HEPG2_wantedGenes <- c('protein_coding',"lncRNA")
 HEPG2_keep2 <- HEPG2.se@elementMetadata@listData$Gene_type ==  HEPG2_wantedGenes 
 HEPG2.se2 <- HEPG2.se[HEPG2_keep2,]
-#save(HEPG2.se2, file = "derived_data/se2_HEPG2.rda")
+save(HEPG2.se2, file = ""developing_se/HEPG2_se/se2_HEPG2.rda")
 ```
 
 ### Further Filtering the SummarizedExperiments
@@ -160,16 +142,12 @@ Given that sequence fragments may map to more than one region of the genome, it 
 
 \<Chenghao: Include your analysis methods here :) \>
 
-### Clustering Analysis - K562 Cells
-
 
 ## Data Analysis
 
 ### Heat Map Analysis
 
-
 ```{r echo=FALSE}
-
 se_pheatmap <- as.data.frame(assay(se))
 gene_type <- as.data.frame(se@elementMetadata@listData$Gene_type)
 se_pheatmap <- cbind(se_pheatmap,gene_type)
@@ -188,6 +166,8 @@ pheatmap(se_pheatmap[1:135], cluster_rows=F, show_rownames=F,
 ```
 Looking at the pheatmap, we see many events/genes that show little to no expression and many different types of genes. This will be later filtered out.
 
+### Clustering Analysis - K562 cells
+
 For the clustering analysis, we use a filtered SummarizedExperiment. It contains data for mRNAs and lncRNAs that bind to at least one protein in the eCLIP experiments. We narrow our focus to these two types of RNAs. The reasons are that they are very well represented in the dataset, and that unlike mRNAs, the functions of almost all lncRNAs remain a mystery. If we see that similar mRNAs are bound by similar proteins, then perhaps this might also hold true for lncRNAs.
 
 The first step is to load the SummarizedExperiment. In "assay(se)", the rows are the ENSEMBL gene ID's and the columns are experiment ID's (note that each eCLIP experiment is performed with a single, unique protein).
@@ -196,9 +176,7 @@ The first step is to load the SummarizedExperiment. In "assay(se)", the rows are
 load("developing_se/K562_se/se2_K562.rda")
 se2
 ```
-
 ```{r}
-
 se2_pheatmap <- as.data.frame(assay(se2))
 gene_type <- as.data.frame(se2@elementMetadata@listData$Gene_type)
 se2_pheatmap <- cbind(se2_pheatmap,gene_type)
@@ -220,7 +198,6 @@ pheatmap(se2_pheatmap[1:135], cluster_rows=F, show_rownames=F,
 Judging by the counts data, some proteins heavily bind our RNAs, and others bind more lightly. Unsurprisingly (in hindsight), working with the unscaled data produces poor clustering results because of this wide spread. As such, we scale the counts data by column sums, effectively normalizing the protein counts. In addition, we also remove any RNAs relatively unbound by proteins (RNAs with row sums less than 100).
 
 ```{r}
-
 ### scale assay(se) by column sums, multiply by 10e7 and round so that the values we work with are integers
 prot.sum   <- colSums(assay(se2))
 assay(se2) <- scale(assay(se2), center=FALSE, scale=prot.sum) * 10e7 %>%
@@ -238,7 +215,6 @@ se <- SummarizedExperiment(assays=list(counts=assay(se2)[genes.hi,]^0.25), colDa
 One preliminary question is: how similar are the 135 eCLIP proteins in terms of their binding to mRNAs and lncRNAs?
 
 ```{r}
-
 ### PCA on eCLIP proteins
 prot.pca <- prcomp(t(assay(se)))
 prot.pca.var <- prot.pca$sdev^2
@@ -255,7 +231,6 @@ ggplot(prot.PC1PC2) + geom_point(aes(PC1, PC2), size = 1) +
 From the plot above, we see that YBX3 is way out in the distance. Perhaps this is why PC1 and PC2 explain such a small percent of the variance. What happens to the PCA results when we remove YBX3?
 
 ```{r}
-
 ### what happens when we remove YBX3?
 idx <- which(prot.PC1PC2$PC1 == max(prot.PC1PC2$PC1))
 name <- rownames(prot.PC1PC2[50,])
@@ -275,7 +250,6 @@ ggplot(prot.PC1PC2) + geom_point(aes(PC1, PC2), size = 1) +
 Now PC1 and PC2 explain even less of the variance! We can conclude that the eCLIP proteins are all very different in their scaled binding of RNAs. It is however intriguing that we see two clusters on the above plot. Perhaps one cluster of proteins more frequently binds lncRNAs? We delve into this more by determining which proteins are in the bottom cluster and which are in the top cluster, and then per cluster, computing the average eCLIP counts per lncRNA and per mRNA.
 
 ```{r}
-
 bot.cluster <- prot.PC1PC2[prot.PC1PC2$PC1 < -50 & prot.PC1PC2$PC2 < 0,]
 top.cluster <- prot.PC1PC2[prot.PC1PC2$PC1 > -50 | prot.PC1PC2$PC2 > 0,]
 
@@ -306,7 +280,6 @@ As we see in the above plot, on average, proteins from the bottom cluster tend t
 Before we continue, let's color-code lncRNAs (teal) and mRNAs (coral) in the SummarizedExperiment. Let's also define a density function. This will all be helpful later.
 
 ```{r}
-
 ### color-code lncRNAs and mRNAs in the se
 rowData(se)[lncRNA.id, "colors"] <- "#f34c28"
 rowData(se)[prtcod.id, "colors"] <- "#2ca1d7"
@@ -325,7 +298,6 @@ get_density <- function(x, y, ...) {
 The main subject we would like to explore is clustering of lncRNAs and mRNAs based on the proteins they bind to. To do so, we run a PCA on the scaled counts data in the "assay(se)".
 
 ```{r}
-
 ### PCA on mRNAs and lncRNAs
 se.pca <- prcomp(assay(se))
 se.pca.var <- se.pca$sdev^2
@@ -344,7 +316,6 @@ ggplot(se.PC1PC2) +
 Based on the plot above, we seem to see a slight clustering of mRNAs vs. lncRNAs. It is difficult to draw conclusions from this plot because there is no way of knowing the density of the datapoints. Below, we will visualize results for lncRNAs and mRNAs separately, accounting for density.
 
 ```{r warning=F}
-
 ### show results for lncRNAs only
 se.lncRNA <- se.PC1PC2[lncRNAs,]
 se.lncRNA$density <- get_density(se.lncRNA$PC1, se.lncRNA$PC2, n = 100)
@@ -359,7 +330,6 @@ ggplot(se.lncRNA) +
 ```
 
 ```{r warning=F}
-
 ### show results for mRNAs only
 se.prtcod <- se.PC1PC2[prtcods,]
 se.prtcod$density <- get_density(se.prtcod$PC1, se.prtcod$PC2, n = 100)
@@ -376,7 +346,6 @@ ggplot(se.prtcod) +
 Interesting that we see two high density areas on the PCA plot for mRNAs. Let's explore these areas further with some GO-term enrichment analyses. Note that we did try to repeat this analysis for lncRNAs, but not surprisingly, there aren't enough GO terms assigned to lncRNAs to yield any results.
 
 ```{r warning=F}
-
 hub <-AnnotationHub()
 
 ### let's first look at the left-most high-density area
@@ -443,7 +412,7 @@ We repeat the clustering analysis performed on K562 cells. This time, we focus o
 
 Step 1: Load the SummarizedExperiment for HEPG2.
 ```{r warning=F}
-load("C:/Users/anastacia/Desktop/784_RNA_teal/developing_se/HEPG2_se/se2_HEPG2.rda")
+load("developing_se/HEPG2_se/se2_HEPG2.rda")
 se2
 ```
 
@@ -596,7 +565,35 @@ YBX3 is a Y-Box binding protein and has been implicated in regulating amino acid
 
 Perhaps the most intriguing result of the clustering analysis is that mRNAs and lncRNAs cluster somewhat independently based on their binding of proteins. Unlike mRNAs, the functions of most lncRNAs are generally unknown. The area where the mRNA and lncRNAs clusters overlap most contains mRNAs enriched for ncRNA processing, ribosome biogenesis, rRNA metabolic process, tRNA metabolic process, rRNA processing, RNA modification, ... Perhaps the lncRNAs also in this overlapped region have similar roles.
 
-Curious to see where XIST is located in the "PCA Results for lncRNAs plot" for K562, we found that it is right beside the lncRNA XACT. This pair stand relatively apart from the other lncRNAs. Whereas XIST is responsible for silencing an X chromosome in XX females, XACT is involved in X chromosome activation. The two work antagonistically (Vallot et al, 2017). XIST and XACT are both involved with the X chromosome, and excitingly not much is known about how XACT functions, the deep similarities in their RBP profiles may indicate the XACT is sequestering the RBPs critical for XIST to function. This might be possible if a protein like SPEN is not bound by XACT, preventing the RNA from actually performing the function of XIST despite having all the other protein resources necessary for repression. Unfortunately, this is a limitation of the dataset as SPEN has not be observed in eCLIP data and cannot be directly compared. 
+Curious to see where XIST is located in the "PCA Results for lncRNAs plot" for K562, we found that it is right beside the lncRNA XACT. This pair stand relatively apart from the other lncRNAs. Whereas XIST is responsible for silencing an X chromosome in XX females, XACT is involved in X chromosome activation. The two work antagonistically (Vallot et al, 2017). XIST and XACT are both involved with the X chromosome, and excitingly not much is known about how XACT functions, the deep similarities in their RBP profiles may indicate that XACT is sequestering the RBPs critical for XIST to function. This might be possible if a protein deemed critical for XIST function, like SPEN, is not bound by XACT and prevents the RNA from actually performing the function of XIST despite having all the other protein resources necessary for repression. Unfortunately, this is a limitation of the dataset, as SPEN-binding has not been measured in eCLIP data and cannot be directly compared. 
+
+A comparison of the exact RBP profiles for XIST and XACT can be found here: 
+```{r}
+XIST.data <- K562_counts["ENSG00000229807.13",]
+XACT.data <- K562_counts["ENSG00000241743.4",]
+combined.df <- as.data.frame(matrix(c(XIST.data, XACT.data), ncol=135, nrow=2))
+
+colnames(combined.df) <- colnames(K562_counts)
+rownames(combined.df) <- c("XIST", "XACT")
+
+plotting.combined.df <- as.data.frame(t(combined.df))
+plotting.combined.df$Gene <- colnames(K562_counts)
+plotting.combined.df <- tidyr::pivot_longer(plotting.combined.df, cols=c('XIST', 'XACT'), names_to='RNA', values_to='count')
+ggplot(plotting.combined.df, aes(x=Gene, y=as.numeric(count), fill=RNA)) + geom_bar(stat='identity', position='dodge') + xlab("RBP") + ylab("RBP count") + ggtitle("XACT/XIST RBP profiles")
+```
+Here, we identify many discrepancies between the profiles. Despite the similar clustering in the PCA these are by no means identical. However, it may also be worth looking at the data scaled by the total length of the RNAs.
+
+```{r}
+XIST.length <- rowData(K562.se)["ENSG00000229807.13",]$Stop - rowData(K562.se)["ENSG00000229807.13",]$Start
+XACT.length <- rowData(K562.se)["ENSG00000241743.4",]$Stop - rowData(K562.se)["ENSG00000241743.4",]$Start
+plotting.combined.df <- as.data.frame(t(combined.df))
+plotting.combined.df$XIST <- as.numeric(plotting.combined.df$XIST)/XIST.length
+plotting.combined.df$XACT <- as.numeric(plotting.combined.df$XACT)/XACT.length
+plotting.combined.df$Gene <- colnames(K562_counts)
+plotting.combined.df <- tidyr::pivot_longer(plotting.combined.df, cols=c('XIST', 'XACT'), names_to='RNA', values_to='count')
+ggplot(plotting.combined.df, aes(x=Gene, y=as.numeric(count), fill=RNA)) + geom_bar(stat='identity', position='dodge') + xlab("RBP") + ylab("RBP count") + ggtitle("Length normalized XACT/XIST RBP profiles")
+```
+Normalizing by length clearly increases the difference, with XIST expressing stronger binding to the proteins than XACT does. This seems to indicate that XIST likely has a higher density of RNA-binding protein motifs than XACT, and that length would not have a perfect correlation to the number of motifs in the transcript. This is certainly a feature that should be further investigated in a future experiment. 
 
 We identified other pairs of lncRNAs and attempted to see if they were involved in similar processes, but there were too many unknowns to make much headway. We do recognize that near XIST and XACT are the lncRNAs NEAT1 and MALAT1, both of which are involved in the formation and/or function of speckles, which are complex regions of local transcriptional activation. We also notice a particular long mRNA, FASN, is found in the farther reaches of the PCA plot, near these other four lncRNAs. This might indicate some amount of overlap with predicting length, as a longer RNA is more likely to bind more proteins, influencing the RBP profiles. Overall, these findings lead us to believe that a complex combination of the function, non-protein binding targets, and length of the transcript may all influence clustering proximity between RNAs. As more is learned about lncRNAs, perhaps given a plot similar to the PCA, a "connect-the-dot" approach can be used. Specifically, if an unknown lncRNA is positioned very near to a group of known lncRNAs, then perhaps it could give insight into the possible function of the unknown lncRNA.
 
@@ -604,7 +601,15 @@ We identified other pairs of lncRNAs and attempted to see if they were involved 
 
 <Major take away conclusions>
 
+Further analysis into other cell types, particularly another female of a similar age to the K562 donor, would be helpful to determining the level of conservation in RBP expression across cell types. Controlling for age and being ab  le to reference sex-specific RNAs including XIST would expand ability for cross-comparison of functionally documented RNAs. The exact details of binding profiles can be extremely beneficial in determining how RNAs function, however, a variety of features such as binding target and RNA length seem to influence the RBP profiles, not just the type of function.  
+
 ## References
+
+Nostrand, E.L. et al. (2016). Robust transcriptome-wide discovery of RNA-binding protein binding sites with enhanced CLIP (eCLIP). Nature Methods, 13(6), 508-514. <https://doi:10.1038/nmeth.3810>
+
+Nostrand, E.L. Yeo, G. (2015). eCLIP Standard Operating Procedure v1.P 20151108. ENCODE, ENCSR489RJI: Documents. <https://www.encodeproject.org/experiments/ENCSR489RJI/> 
+
+Yeo, G. (2020) eCLIP-seq Processing Pipeline v2.0. ENCODE, ENCSR268ETU: Documents. <https://www.encodeproject.org/experiments/ENCSR268ETU/>
 
 Cooke, A., Schwarzl, T., Huppertz, I., Kramer, G., Mantas, P., Alleaume, A. M., Huber, W., Krijgsveld, J., & Hentze, M. W. (2019). The RNA-Binding Protein YBX3 Controls Amino Acid Levels by Regulating SLC mRNA Abundance. Cell reports, 27(11), 3097--3106.e5. <https://doi.org/10.1016/j.celrep.2019.05.039>
 
