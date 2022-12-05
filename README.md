@@ -6,4 +6,4 @@ Most details are contained in the report.Rmd file.
 
 In order to construct this report, please: 
 1. Clone this repository
-2. Run `Rscript report.Rmd`
+2. Run `Rscript final_report.Rmd`
